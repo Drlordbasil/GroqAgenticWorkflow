@@ -170,6 +170,8 @@ def main():
     Hello Annie, Mike, and Alex. I am your boss Bob. Let's work on creating the first agentic automated entrepreneurial profit engineering agent, we need to keep code in our convo at all times. Let's start with building the frame of the 1 file script.
 
     any code you markdown will be saved as the final code, updating it whenever I detect a new code block. Let's start with the first code block and just build on it from there slowly and robustly. We can simply get the errors the next response to us, as this is fully automated when code is detected, but alex will also be able to use local commands, like pip install openai or pip install requests, etc. He can also make sure to create, list, save, ect to the workspace folder within your current working directory. Let's start with the first code block and just build on it from there slowly and robustly. We can simply get the errors the next response to us, as this is fully automated when code is detected, but alex will also be able to use local commands, like pip install openai or pip install requests, etc. He can also make sure to create, list, save, ect to the workspace folder within your current working directory.
+    
+    Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.
     """
 
     bob_response = user_input
@@ -178,28 +180,28 @@ def main():
         print("\n" + "-"*30 + f" Iteration {i} " + "-"*30 + "\n")
 
         # Mike's turn
-        mike_input = f"You are Mike, an AI software architect and engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {mike_error if 'mike_error' in locals() else 'None'}\n\nPlease provide your input as Mike."
+        mike_input = f"Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.You are Mike, an AI software architect and engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {mike_error if 'mike_error' in locals() else 'None'}\n\nPlease provide your input as Mike."
         mike_response = agent_chat(mike_input, mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Mike", mike_response, CYAN))
         code = extract_code(mike_response)
         mike_output, mike_error = test_code(code)
 
         # Annie's turn
-        annie_input = f"You are Annie, a senior agentic workflow developer. Here is the current state of the project:\n\nMike's response: {mike_response}\nCurrent code: {code}\nCurrent error: {annie_error if 'annie_error' in locals() else 'None'}\n\nPlease provide your input as Annie."
+        annie_input = f"Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.You are Annie, a senior agentic workflow developer. Here is the current state of the project:\n\nMike's response: {mike_response}\nCurrent code: {code}\nCurrent error: {annie_error if 'annie_error' in locals() else 'None'}\n\nPlease provide your input as Annie."
         annie_response = agent_chat(annie_input, annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Annie", annie_response, YELLOW))
         code = extract_code(annie_response)
         annie_output, annie_error = test_code(code)
 
         # Alex's turn
-        alex_input = f"You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {alex_error if 'alex_error' in locals() else 'None'}\n\nPlease provide your input as Alex."
+        alex_input = f"Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {alex_error if 'alex_error' in locals() else 'None'}\n\nPlease provide your input as Alex."
         alex_response = agent_chat(alex_input, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Alex", alex_response, BLUE))
         code = extract_code(alex_response)
         alex_output, alex_error = test_code(code)
 
         # Bob's turn
-        bob_input = f"You are Bob, the boss of Mike, Annie, and Alex. Here are the messages from your employees:\n\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nAlex's response: {alex_response}\nCurrent code: {code}\nCurrent error: {bob_error if 'bob_error' in locals() else 'None'}\n\nPlease provide your input as Bob."
+        bob_input = f"Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.You are Bob, the boss of Mike, Annie, and Alex. Here are the messages from your employees:\n\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nAlex's response: {alex_response}\nCurrent code: {code}\nCurrent error: {bob_error if 'bob_error' in locals() else 'None'}\n\nPlease provide your input as Bob."
         bob_response = agent_chat(bob_input, bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
         print(create_agent_response("Bob", bob_response, NEON_GREEN))
         code = extract_code(bob_response)
