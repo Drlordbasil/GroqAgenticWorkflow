@@ -2,26 +2,23 @@ from dotenv import load_dotenv
 import os
 import requests
 from openai import OpenAI
-import pyaudio
-from pydub import AudioSegment
-from pydub.playback import play
+
 from time import sleep
 import sys
-from io import StringIO
-from contextlib import redirect_stdout
+
 import re
 import subprocess
 import logging
 import tempfile
-import shutil
+
 import pickle
-import time
+
 
 load_dotenv()
 
 api_keys = {
    "groq": os.getenv("GROQ_API_KEY"),
-   "elevenlabs": os.getenv("ELEVEN_LABS_API_KEY"),
+   
    "openai": os.getenv("OPENAI_API_KEY"),
 }
 client = {
@@ -52,40 +49,11 @@ def save_file(filepath, content):
    else:
        return False
 
-def text_to_speech(text, voice_id, xi_api_key, output_file_path="/voice", filename="output.mp3"):
-   full_file_path = f"{output_file_path}/{filename}"
-   url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-   headers = {
-       "Accept": "audio/mpeg",
-       "Content-Type": "application/json",
-       "xi-api-key": xi_api_key,
-   }
-
-   data = {
-       "text": text,
-       "model_id": "eleven_monolingual_v1",
-       "voice_settings": {
-           "stability": 0.5,
-           "stability_boost": 0.5,
-       }
-   }
-
-   response = requests.post(url, json=data, headers=headers)
-
-   if response.status_code == 200:
-       with open(full_file_path, 'wb') as f:
-           f.write(response.content)
-       return {"success": True, "message": "Audio generated successfully.", "file_path": full_file_path}
-   else:
-       return {"success": False, "message": "Failed to generate audio."}
-
-def play_audio(file_path):
-   audio = AudioSegment.from_mp3(file_path)
-   play(audio)
 
 
 
-def agent_chat(user_input, system_message, memory, model, temperature, max_retries=3, retry_delay=10):
+
+def agent_chat(user_input, system_message, memory, model, temperature, max_retries=30, retry_delay=60):
     messages = [
         {"role": "system", "content": system_message},
         *memory[-5:],
@@ -114,7 +82,7 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             retry_count += 1
             if retry_count < max_retries:
                 logging.info(f"Retrying in {retry_delay} seconds... (Attempt {retry_count}/{max_retries})")
-                time.sleep(retry_delay)
+                sleep(retry_delay)
             else:
                 logging.error(f"Max retries exceeded. Raising the exception.")
                 raise e
@@ -155,10 +123,11 @@ def test_code(code):
 
 def execute_terminal_command(command):
    try:
-       result = subprocess.run(command, capture_output=True, text=True, shell=True)
+       result = subprocess.run(command=f"cd workspace\n {command}", capture_output=True, text=True, shell=True)
        return result.stdout, result.stderr
    except Exception as e:
        logging.error(f"Error executing terminal command: {str(e)}")
+       
        return None, str(e)
 
 def create_agent_response(agent_name, agent_response, agent_color):
@@ -175,9 +144,7 @@ def load_checkpoint(checkpoint_file):
    except FileNotFoundError:
        return None
 def main():
-    topic1 = "print statements and code fabrication"
-    topic2 = "code structure maintaining of flow and a good structure to follow and code fabrication."
-    topic3 = "Boss your employees around properly and make sure they are doing their jobs."
+
     max_range = 100
     
     checkpoint_file = "agentic_workflow_checkpoint.pkl"
@@ -201,6 +168,8 @@ def main():
 
     user_input = """
     Hello Annie, Mike, and Alex. I am your boss Bob. Let's work on creating the first agentic automated entrepreneurial profit engineering agent, we need to keep code in our convo at all times. Let's start with building the frame of the 1 file script.
+
+    any code you markdown will be saved as the final code, updating it whenever I detect a new code block. Let's start with the first code block and just build on it from there slowly and robustly. We can simply get the errors the next response to us, as this is fully automated when code is detected, but alex will also be able to use local commands, like pip install openai or pip install requests, etc. He can also make sure to create, list, save, ect to the workspace folder within your current working directory. Let's start with the first code block and just build on it from there slowly and robustly. We can simply get the errors the next response to us, as this is fully automated when code is detected, but alex will also be able to use local commands, like pip install openai or pip install requests, etc. He can also make sure to create, list, save, ect to the workspace folder within your current working directory.
     """
 
     bob_response = user_input
@@ -210,7 +179,7 @@ def main():
 
         # Mike's turn
         mike_input = f"You are Mike, an AI software architect and engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {mike_error if 'mike_error' in locals() else 'None'}\n\nPlease provide your input as Mike."
-        mike_response = agent_chat(mike_input, mike_system_message, mike_memory, "mixtral-8x7b-32768", 0)
+        mike_response = agent_chat(mike_input, mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Mike", mike_response, CYAN))
         code = extract_code(mike_response)
         mike_output, mike_error = test_code(code)
@@ -231,7 +200,7 @@ def main():
 
         # Bob's turn
         bob_input = f"You are Bob, the boss of Mike, Annie, and Alex. Here are the messages from your employees:\n\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nAlex's response: {alex_response}\nCurrent code: {code}\nCurrent error: {bob_error if 'bob_error' in locals() else 'None'}\n\nPlease provide your input as Bob."
-        bob_response = agent_chat(bob_input, bob_system_message, bob_memory, "mixtral-8x7b-32768", 0)
+        bob_response = agent_chat(bob_input, bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
         print(create_agent_response("Bob", bob_response, NEON_GREEN))
         code = extract_code(bob_response)
         bob_output, bob_error = test_code(code)
