@@ -214,7 +214,10 @@ def main():
         alex_input = f"You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Alex')}\n\nPlease provide your input as Alex."
         alex_response = agent_chat(alex_input, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Alex", alex_response, BLUE))
-        code = open_file(current_code_file)
+        code = extract_code(alex_response)
+        
+
+        
         current_error = test_code(code)
 
         if code:
