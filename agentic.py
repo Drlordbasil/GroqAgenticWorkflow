@@ -192,100 +192,45 @@ def main():
         print("\n" + "-"*30 + f" Iteration {i} " + "-"*30 + "\n")
 
         # Bob's turn
-        bob_input = f"You are Bob, the boss of Mike, Annie, and Alex. Here is the current state of the project:\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Bob."
+        bob_thoughts = agent_chat("You are Bob, the boss of Mike, Annie, and Alex. What are your thoughts on the current state of the project?", bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
+        bob_input = f"You are Bob, the boss of Mike, Annie, and Alex. Here is the current state of the project:\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nYour current thoughts on state of project{bob_thoughts}\nPlease provide your input as Bob."
         bob_response = agent_chat(bob_input, bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
         print(create_agent_response("Bob", bob_response, NEON_GREEN))
 
         # Mike's turn
-        mike_input = f"You are Mike, an AI software architect and engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Mike')}\n\nPlease provide your input as Mike."
+        mike_thoughts = agent_chat("You are Mike, an AI software architect and engineer. What are your thoughts on the current state of the project?", mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.5)
+
+        mike_input = f"You are Mike, an AI software architect and engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Mike')}\nYour thoughts on the current project{mike_thoughts}\nPlease provide your input as Mike."
         mike_response = agent_chat(mike_input, mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Mike", mike_response, CYAN))
-        code = open_file(current_code_file)
+        code = extract_code(mike_response)
         current_error = test_code(code)
 
         # Annie's turn
-        annie_input = f"You are Annie, a senior agentic workflow developer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Annie')}\n\nPlease provide your input as Annie."
+        annie_thoughts = agent_chat("You are Annie, a senior agentic workflow developer. What are your thoughts on the current state of the project?", annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.5)   
+        annie_input = f"You are Annie, a senior agentic workflow developer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Annie')}\nyour thoughts{annie_thoughts}\nPlease provide your input as Annie."
         annie_response = agent_chat(annie_input, annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Annie", annie_response, YELLOW))
-        code = open_file(current_code_file)
+        code = extract_code(annie_response)
         current_error = test_code(code)
 
         # Alex's turn
-        alex_input = f"You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Alex')}\n\nPlease provide your input as Alex."
+        alex_thoughts = agent_chat("You are Alex, a DevOps Engineer. What are your thoughts on the current state of the project?", alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.5)
+        alex_input = f"You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Alex')}\nyour thoughts{alex_thoughts}\nPlease provide your input as Alex."
         alex_response = agent_chat(alex_input, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Alex", alex_response, BLUE))
         code = extract_code(alex_response)
-        
-
-        
         current_error = test_code(code)
 
         if code:
             save_result = perform_file_operation("write", current_code_file, code)
-            code = open_file(current_code_file)
             print(f"\n[FILE OPERATION] {save_result}")
 
         checkpoint_data = (mike_memory, annie_memory, bob_memory, alex_memory, code)
         save_checkpoint(checkpoint_data, checkpoint_file)
 
-        print("\n" + "-"*20 + " Current Code Execution " + "-"*20 + "\n")
-        current_code_output, current_code_error = test_code(code)
-        if current_code_error:
-            print(f"\n[ERROR] Current code encountered an error: {current_code_error}")
-        elif current_code_output:
-            print(f"\n[OUTPUT] Current code output:\n{current_code_output}")
-        else:
-            print("\nNo output from the current code.")
 
-        # Perform testing, quality checks, dependency updates, refactoring, optimization, and deployment as needed
-        if current_code_error is None and current_code_output is not None:
-            print("\n" + "-"*20 + " Running Tests " + "-"*20 + "\n")
-            test_command = "python -m unittest discover tests"
-            test_output, test_error = execute_terminal_command(test_command)
-            if test_error:
-                print(f"\n[ERROR] Tests encountered an error: {test_error}")
-            else:
-                print(f"\n[TESTS] Test output:\n{test_output}")
 
-            print("\n" + "-"*20 + " Code Quality Checks " + "-"*20 + "\n")
-            quality_check_command = "pylint current_code.py"
-            quality_output, quality_error = execute_terminal_command(quality_check_command)
-            if quality_error:
-                print(f"\n[ERROR] Code quality checks encountered an error: {quality_error}")
-            else:
-                print(f"\n[QUALITY] Code quality output:\n{quality_output}")
-
-            print("\n" + "-"*20 + " Updating Dependencies " + "-"*20 + "\n")
-            update_command = "pip install --upgrade -r requirements.txt"
-            update_output, update_error = execute_terminal_command(update_command)
-            if update_error:
-                print(f"\n[ERROR] Dependency update encountered an error: {update_error}")
-            else:
-                print(f"\n[UPDATE] Dependency update output:\n{update_output}")
-
-            print("\n" + "-"*20 + " Code Refactoring " + "-"*20 + "\n")
-            refactoring_command = "black current_code.py"
-            refactoring_output, refactoring_error = execute_terminal_command(refactoring_command)
-            if refactoring_error:
-                print(f"\n[ERROR] Code refactoring encountered an error: {refactoring_error}")
-            else:
-                print(f"\n[REFACTOR] Code refactoring output:\n{refactoring_output}")
-
-            print("\n" + "-"*20 + " Code Optimization " + "-"*20 + "\n")
-            optimization_command = "python -m compileall current_code.py"
-            optimization_output, optimization_error = execute_terminal_command(optimization_command)
-            if optimization_error:
-                print(f"\n[ERROR] Code optimization encountered an error: {optimization_error}")
-            else:
-                print(f"\n[OPTIMIZE] Code optimization output:\n{optimization_output}")
-
-            print("\n" + "-"*20 + " Code Deployment " + "-"*20 + "\n")
-            deployment_command = "python current_code.py"
-            deployment_output, deployment_error = execute_terminal_command(deployment_command)
-            if deployment_error:
-                print(f"\n[ERROR] Code deployment encountered an error: {deployment_error}")
-            else:
-                print(f"\n[DEPLOY] Code deployment output:\n{deployment_output}")
 
     print("\n" + "="*40 + " Conversation End " + "="*40 + "\n")
 
