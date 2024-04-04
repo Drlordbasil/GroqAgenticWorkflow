@@ -190,24 +190,24 @@ def main():
 
     for i in range(1, max_iterations + 1):
         print("\n" + "-"*30 + f" Iteration {i} " + "-"*30 + "\n")
-
+        project_output_goal = "The goal of this project is to develop a robust AI-based workflow management system that can automate various tasks and streamline business processes. The system should be scalable, secure, and user-friendly, with a focus on efficiency and reliability. Use the latest AI technologies and best practices to create a cutting-edge solution that meets the needs of our clients and stakeholders. The project timeline is 2 months, and the budget is $500. The success criteria include achieving a minimum accuracy of 95%, reducing manual effort by 50%, and improving overall productivity by 30%."
         # Bob's turn
-        bob_thoughts = agent_chat("You are Bob, the boss of Mike, Annie, and Alex. What are your thoughts on the current state of the project?", bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
+        bob_thoughts = agent_chat(f"You are Bob, the boss of Mike, Annie, and Alex.##project idea and goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal### What are your thoughts on the current state of the project for the goal?", bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
         bob_input = f"You are Bob, the boss of Mike, Annie, and Alex. Here is the current state of the project:\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nYour current thoughts on state of project{bob_thoughts}\nPlease provide your input as Bob."
         bob_response = agent_chat(bob_input, bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
         print(create_agent_response("Bob", bob_response, NEON_GREEN))
 
         # Mike's turn
-        mike_thoughts = agent_chat("You are Mike, an AI software architect and engineer. What are your thoughts on the current state of the project?", mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.5)
+        mike_thoughts = agent_chat(f"You are Mike, an AI software architect and engineer.goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal### What are your thoughts on the current state of the project?", mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.5)
 
-        mike_input = f"You are Mike, an AI software architect and engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Mike')}\nYour thoughts on the current project{mike_thoughts}\nPlease provide your input as Mike."
+        mike_input = f"You are Mike, an AI software architect and engineer. goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal###Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Mike')}\nYour thoughts on the current project{mike_thoughts}\nPlease provide your input as Mike."
         mike_response = agent_chat(mike_input, mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Mike", mike_response, CYAN))
         code = extract_code(mike_response)
         current_error = test_code(code)
 
         # Annie's turn
-        annie_thoughts = agent_chat("You are Annie, a senior agentic workflow developer. What are your thoughts on the current state of the project?", annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.5)   
+        annie_thoughts = agent_chat(f"You are Annie, a senior agentic workflow developer.goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal### What are your thoughts on the current state of the project?", annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.5)   
         annie_input = f"You are Annie, a senior agentic workflow developer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Annie')}\nyour thoughts{annie_thoughts}\nPlease provide your input as Annie."
         annie_response = agent_chat(annie_input, annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Annie", annie_response, YELLOW))
@@ -215,16 +215,27 @@ def main():
         current_error = test_code(code)
 
         # Alex's turn
-        alex_thoughts = agent_chat("You are Alex, a DevOps Engineer. What are your thoughts on the current state of the project?", alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.5)
+        alex_thoughts = agent_chat(f"You are Alex, a DevOps Engineer. goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal### What are your thoughts on the current state of the project?", alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.5)
         alex_input = f"You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Alex')}\nyour thoughts{alex_thoughts}\nPlease provide your input as Alex."
         alex_response = agent_chat(alex_input, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Alex", alex_response, BLUE))
         code = extract_code(alex_response)
         current_error = test_code(code)
+        alex_command_prompt = "You will respond only with a terminal command. What command would you like to execute?"
+        alex_command = agent_chat(alex_command_prompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.5)
+        print(create_agent_response("Alex", alex_command, BLUE))
+        command_output, command_error = execute_terminal_command(alex_command)
+        print(f"Terminal Command Output: {command_output}")
 
         if code:
             save_result = perform_file_operation("write", current_code_file, code)
             print(f"\n[FILE OPERATION] {save_result}")
+            test_code_output, test_code_error = test_code(code)
+            if test_code_output:
+                print(f"\n[TEST CODE OUTPUT]\n{test_code_output}")
+            if test_code_error:
+                print(f"\n[TEST CODE ERROR]\n{test_code_error}")
+
 
         checkpoint_data = (mike_memory, annie_memory, bob_memory, alex_memory, code)
         save_checkpoint(checkpoint_data, checkpoint_file)
