@@ -1,33 +1,24 @@
-from dotenv import load_dotenv
 import os
-import requests
-from openai import OpenAI
-
-from time import sleep
-import sys
-
 import re
 import subprocess
 import logging
+import sys
 import tempfile
-
 import pickle
-
+from time import sleep
+from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 
 api_keys = {
-   "groq": os.getenv("GROQ_API_KEY"),
-   
-   "openai": os.getenv("OPENAI_API_KEY"),
+    "groq": os.getenv("GROQ_API_KEY"),
+    "openai": os.getenv("OPENAI_API_KEY"),
 }
 client = {
-   "groq_client": OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_keys["groq"]),
-   "openai_client": OpenAI(base_url="https://api.openai.com/v1", api_key=api_keys["openai"]),
+    "groq_client": OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_keys["groq"]),
+    "openai_client": OpenAI(base_url="https://api.openai.com/v1", api_key=api_keys["openai"]),
 }
-
-voiceid1 = "21m00Tcm4TlvDq8ikWAM"
-voiceid2 = "29vD33N1CtxCmqQRPOH"
 
 NEON_GREEN = "\033[92m"
 CYAN = "\033[96m"
@@ -38,20 +29,13 @@ RESET_COLOR = "\033[0m"
 logging.basicConfig(filename='agentic_workflow.log', level=logging.ERROR)
 
 def open_file(filepath):
-   with open(filepath, 'r', encoding='utf-8') as infile:
-       return infile.read()
+    with open(filepath, 'r', encoding='utf-8') as infile:
+        return infile.read()
 
 def save_file(filepath, content):
-   with open(filepath, 'w', encoding='utf-8') as outfile:
-       outfile.write(content)
-   if os.path.exists(filepath):
-       return True
-   else:
-       return False
-
-
-
-
+    with open(filepath, 'w', encoding='utf-8') as outfile:
+        outfile.write(content)
+    return os.path.exists(filepath)
 
 def agent_chat(user_input, system_message, memory, model, temperature, max_retries=30, retry_delay=60):
     messages = [
@@ -87,66 +71,107 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                 logging.error(f"Max retries exceeded. Raising the exception.")
                 raise e
 
-
 def extract_code(text):
-   code_block_pattern = re.compile(r'```python(.*?)```', re.DOTALL)
-   code_blocks = code_block_pattern.findall(text)
-   if code_blocks:
-       return code_blocks[0].strip()
-   else:
-       return None
+    code_block_pattern = re.compile(r'```python(.*?)```', re.DOTALL)
+    code_blocks = code_block_pattern.findall(text)
+    return code_blocks[0].strip() if code_blocks else None
 
 def test_code(code):
-   if code is None:
-       return None, None
+    if not code:
+        return None, None
 
-   with tempfile.TemporaryDirectory() as temp_dir:
-       script_path = os.path.join(temp_dir, 'temp_script.py')
-       with open(script_path, 'w') as f:
-           f.write(code)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        script_path = os.path.join(temp_dir, 'temp_script.py')
+        with open(script_path, 'w') as f:
+            f.write(code)
 
-       try:
-           output = subprocess.check_output(['python', script_path], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
-           return output, None
-
-       except subprocess.CalledProcessError as e:
-           error_message = e.output
-           return None, error_message
-
-       except subprocess.TimeoutExpired as e:
-           error_message = "Execution timed out after 10 seconds"
-           return None, error_message
-
-       except Exception as e:
-           error_message = str(e)
-           return None, error_message
+        try:
+            output = subprocess.check_output(['python', script_path], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
+            return output, None
+        except subprocess.CalledProcessError as e:
+            return None, e.output
+        except subprocess.TimeoutExpired:
+            return None, "Execution timed out after 10 seconds"
+        except Exception as e:
+            return None, str(e)
 
 def execute_terminal_command(command):
-   try:
-       result = subprocess.run(command=f"cd workspace\n {command}", capture_output=True, text=True, shell=True)
-       return result.stdout, result.stderr
-   except Exception as e:
-       logging.error(f"Error executing terminal command: {str(e)}")
-       
-       return None, str(e)
+    try:
+        result = subprocess.run(command=f"cd workspace\n {command}", capture_output=True, text=True, shell=True)
+        return result.stdout, result.stderr
+    except Exception as e:
+        logging.error(f"Error executing terminal command: {str(e)}")
+        return None, str(e)
 
 def create_agent_response(agent_name, agent_response, agent_color):
-   return agent_color + f"\n{agent_name}: " + agent_response + RESET_COLOR
+    return agent_color + f"\n{agent_name}: " + agent_response + RESET_COLOR
 
 def save_checkpoint(checkpoint_data, checkpoint_file):
-   with open(checkpoint_file, 'wb') as f:
-       pickle.dump(checkpoint_data, f)
+    with open(checkpoint_file, 'wb') as f:
+        pickle.dump(checkpoint_data, f)
 
 def load_checkpoint(checkpoint_file):
-   try:
-       with open(checkpoint_file, 'rb') as f:
-           return pickle.load(f)
-   except FileNotFoundError:
-       return None
-def main():
+    try:
+        with open(checkpoint_file, 'rb') as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        return None
 
-    max_range = 100
-    
+def get_code_suggestions(code, agent_role):
+    suggestions = ""
+    if agent_role == "Mike":
+        suggestions = "Suggestions for Mike:\n"
+        suggestions += "- ask Bob for help\n"
+        suggestions += "- Consider using more descriptive variable names to improve code readability.\n"
+        suggestions += "- Break down complex functions into smaller, reusable functions.\n"
+        suggestions += "- Add comments to explain the purpose and functionality of key code segments.\n"
+    elif agent_role == "Annie":
+        suggestions = "Suggestions for Annie:\n"
+        suggestions += "- Ask bob for help\n"
+        suggestions += "- Review the code for potential logic errors and edge cases.\n"
+        suggestions += "- Implement proper error handling and provide informative error messages to users.\n"
+        suggestions += "- Ensure the user interface is intuitive and easy to navigate.\n"
+        suggestions += "- Consider adding input validation to prevent unexpected behavior.\n"
+    elif agent_role == "Alex":
+
+        suggestions = "Suggestions for Alex:\n"
+        suggestions += "- Ask Bob for help\n"
+        suggestions += "- Send full robust script code ALWAYS free of placeholders. \n"
+        suggestions += "- Implement a robust logging mechanism to track system activities and errors.\n"
+        suggestions += "- Ensure the code follows best practices for security and compliance.\n"
+        suggestions += "- Optimize the code for performance and efficiency.\n"
+        suggestions += "- Develop comprehensive unit tests to cover critical functionalities.\n"
+        suggestions += "- Automate the testing and deployment process to reduce manual effort.\n"
+        suggestions += "- Set up continuous integration and continuous deployment (CI/CD) pipelines.\n"
+    return suggestions
+
+def perform_file_operation(operation, filepath, content=None):
+    if operation == "read":
+        try:
+            with open(filepath, 'r', encoding='utf-8') as file:
+                file_content = file.read()
+            return f"File '{filepath}' read successfully. Contents:\n{file_content}"
+        except FileNotFoundError:
+            return f"File '{filepath}' not found."
+    elif operation == "write":
+        try:
+            with open(filepath, 'w', encoding='utf-8') as file:
+                file.write(content)
+            return f"File '{filepath}' written successfully with content:\n{content}"
+        except Exception as e:
+            return f"Error writing to file '{filepath}': {str(e)}"
+    elif operation == "append":
+        try:
+            with open(filepath, 'a', encoding='utf-8') as file:
+                file.write(content)
+            return f"Content appended to file '{filepath}' successfully. Appended content:\n{content}"
+        except Exception as e:
+            return f"Error appending to file '{filepath}': {str(e)}"
+    else:
+        return f"Invalid file operation: {operation}"
+
+def main():
+    max_iterations = 100
     checkpoint_file = "agentic_workflow_checkpoint.pkl"
     current_code_file = "current_code.py"
 
@@ -159,56 +184,43 @@ def main():
     if checkpoint_data:
         mike_memory, annie_memory, bob_memory, alex_memory, code = checkpoint_data
     else:
-        mike_memory = []
-        annie_memory = []
-        bob_memory = []
-        alex_memory = []
+        mike_memory, annie_memory, bob_memory, alex_memory, code = [], [], [], [], ""
 
     print("\n" + "="*40 + " Conversation Start " + "="*40 + "\n")
 
-    user_input = """
-    Hello Annie, Mike, and Alex. I am your boss Bob. Let's work on creating the first agentic automated entrepreneurial profit engineering agent, we need to keep code in our convo at all times. Let's start with building the frame of the 1 file script.
-
-    any code you markdown will be saved as the final code, updating it whenever I detect a new code block. Let's start with the first code block and just build on it from there slowly and robustly. We can simply get the errors the next response to us, as this is fully automated when code is detected, but alex will also be able to use local commands, like pip install openai or pip install requests, etc. He can also make sure to create, list, save, ect to the workspace folder within your current working directory. Let's start with the first code block and just build on it from there slowly and robustly. We can simply get the errors the next response to us, as this is fully automated when code is detected, but alex will also be able to use local commands, like pip install openai or pip install requests, etc. He can also make sure to create, list, save, ect to the workspace folder within your current working directory.
-    
-    Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.
-    """
-
-    bob_response = user_input
-
-    for i in range(1, max_range):
+    for i in range(1, max_iterations + 1):
         print("\n" + "-"*30 + f" Iteration {i} " + "-"*30 + "\n")
 
-        # Mike's turn
-        mike_input = f"Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.You are Mike, an AI software architect and engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {mike_error if 'mike_error' in locals() else 'None'}\n\nPlease provide your input as Mike."
-        mike_response = agent_chat(mike_input, mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.7)
-        print(create_agent_response("Mike", mike_response, CYAN))
-        code = extract_code(mike_response)
-        mike_output, mike_error = test_code(code)
-
-        # Annie's turn
-        annie_input = f"Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.You are Annie, a senior agentic workflow developer. Here is the current state of the project:\n\nMike's response: {mike_response}\nCurrent code: {code}\nCurrent error: {annie_error if 'annie_error' in locals() else 'None'}\n\nPlease provide your input as Annie."
-        annie_response = agent_chat(annie_input, annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.7)
-        print(create_agent_response("Annie", annie_response, YELLOW))
-        code = extract_code(annie_response)
-        annie_output, annie_error = test_code(code)
-
-        # Alex's turn
-        alex_input = f"Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {alex_error if 'alex_error' in locals() else 'None'}\n\nPlease provide your input as Alex."
-        alex_response = agent_chat(alex_input, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.7)
-        print(create_agent_response("Alex", alex_response, BLUE))
-        code = extract_code(alex_response)
-        alex_output, alex_error = test_code(code)
-
         # Bob's turn
-        bob_input = f"Remember to understand that we must use opensource commercially available models from huggingface or create our own models for our use-cases depending, we should never make code that requires an API key at all.You are Bob, the boss of Mike, Annie, and Alex. Here are the messages from your employees:\n\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nAlex's response: {alex_response}\nCurrent code: {code}\nCurrent error: {bob_error if 'bob_error' in locals() else 'None'}\n\nPlease provide your input as Bob."
+        bob_input = f"You are Bob, the boss of Mike, Annie, and Alex. Here is the current state of the project:\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Bob."
         bob_response = agent_chat(bob_input, bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
         print(create_agent_response("Bob", bob_response, NEON_GREEN))
-        code = extract_code(bob_response)
-        bob_output, bob_error = test_code(code)
+
+        # Mike's turn
+        mike_input = f"You are Mike, an AI software architect and engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Mike')}\n\nPlease provide your input as Mike."
+        mike_response = agent_chat(mike_input, mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.7)
+        print(create_agent_response("Mike", mike_response, CYAN))
+        code = open_file(current_code_file)
+        current_error = test_code(code)
+
+        # Annie's turn
+        annie_input = f"You are Annie, a senior agentic workflow developer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Annie')}\n\nPlease provide your input as Annie."
+        annie_response = agent_chat(annie_input, annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.7)
+        print(create_agent_response("Annie", annie_response, YELLOW))
+        code = open_file(current_code_file)
+        current_error = test_code(code)
+
+        # Alex's turn
+        alex_input = f"You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Alex')}\n\nPlease provide your input as Alex."
+        alex_response = agent_chat(alex_input, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.7)
+        print(create_agent_response("Alex", alex_response, BLUE))
+        code = open_file(current_code_file)
+        current_error = test_code(code)
 
         if code:
-            save_file(current_code_file, code)
+            save_result = perform_file_operation("write", current_code_file, code)
+            code = open_file(current_code_file)
+            print(f"\n[FILE OPERATION] {save_result}")
 
         checkpoint_data = (mike_memory, annie_memory, bob_memory, alex_memory, code)
         save_checkpoint(checkpoint_data, checkpoint_file)
@@ -222,21 +234,16 @@ def main():
         else:
             print("\nNo output from the current code.")
 
-        if i % 5 == 0:
+        # Perform testing, quality checks, dependency updates, refactoring, optimization, and deployment as needed
+        if current_code_error is None and current_code_output is not None:
             print("\n" + "-"*20 + " Running Tests " + "-"*20 + "\n")
             test_command = "python -m unittest discover tests"
             test_output, test_error = execute_terminal_command(test_command)
-            if test_output:
-                print(f"\n[TESTS] Tests output:\n{test_output}")
-            if code:
-                save_file(current_code_file, code)
-
             if test_error:
                 print(f"\n[ERROR] Tests encountered an error: {test_error}")
             else:
                 print(f"\n[TESTS] Test output:\n{test_output}")
 
-        if i % 10 == 0:
             print("\n" + "-"*20 + " Code Quality Checks " + "-"*20 + "\n")
             quality_check_command = "pylint current_code.py"
             quality_output, quality_error = execute_terminal_command(quality_check_command)
@@ -245,7 +252,6 @@ def main():
             else:
                 print(f"\n[QUALITY] Code quality output:\n{quality_output}")
 
-        if i % 15 == 0:
             print("\n" + "-"*20 + " Updating Dependencies " + "-"*20 + "\n")
             update_command = "pip install --upgrade -r requirements.txt"
             update_output, update_error = execute_terminal_command(update_command)
@@ -254,7 +260,6 @@ def main():
             else:
                 print(f"\n[UPDATE] Dependency update output:\n{update_output}")
 
-        if i % 20 == 0:
             print("\n" + "-"*20 + " Code Refactoring " + "-"*20 + "\n")
             refactoring_command = "black current_code.py"
             refactoring_output, refactoring_error = execute_terminal_command(refactoring_command)
@@ -263,7 +268,6 @@ def main():
             else:
                 print(f"\n[REFACTOR] Code refactoring output:\n{refactoring_output}")
 
-        if i % 25 == 0:
             print("\n" + "-"*20 + " Code Optimization " + "-"*20 + "\n")
             optimization_command = "python -m compileall current_code.py"
             optimization_output, optimization_error = execute_terminal_command(optimization_command)
@@ -272,8 +276,6 @@ def main():
             else:
                 print(f"\n[OPTIMIZE] Code optimization output:\n{optimization_output}")
 
-        if i % 30 == 0:
-            save_file(current_code_file, code)
             print("\n" + "-"*20 + " Code Deployment " + "-"*20 + "\n")
             deployment_command = "python current_code.py"
             deployment_output, deployment_error = execute_terminal_command(deployment_command)
