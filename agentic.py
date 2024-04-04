@@ -97,7 +97,7 @@ def test_code(code):
 
 def execute_terminal_command(command):
     try:
-        result = subprocess.run(command=f"cd workspace\n {command}", capture_output=True, text=True, shell=True)
+        result = subprocess.run(command, capture_output=True, text=True, shell=True)
         return result.stdout, result.stderr
     except Exception as e:
         logging.error(f"Error executing terminal command: {str(e)}")
@@ -221,11 +221,54 @@ def main():
         print(create_agent_response("Alex", alex_response, BLUE))
         code = extract_code(alex_response)
         current_error = test_code(code)
-        alex_command_prompt = "You will respond only with a terminal command. What command would you like to execute?"
+        alex_command_prompt = "You will respond only with a terminal command. What command would you like to execute? Respond without markdowns and only terminal command you wish ALWAYS when running a command.Act like you are typing on a terminal. Response format: 'python script.py' or 'ls -l' or 'echo Hello World' without quotes."
         alex_command = agent_chat(alex_command_prompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.5)
         print(create_agent_response("Alex", alex_command, BLUE))
         command_output, command_error = execute_terminal_command(alex_command)
+        if command_output is not None:
+            alex_reprompt = f"here is your output: {command_output} \n"
+            alex_reprompt += "Would you like to save the output to a file? If so, please provide the file path."
+            #get new command from Alex
+            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
+            print(create_agent_response("Alex", alex_command, BLUE))
+        elif command_error is not None:
+            alex_reprompt = f"An error occurred:(most likely due to not just sending the command alone) {command_error}\n"
+            alex_reprompt += "Would you like to try another command? If so, please provide the command."
+            # get new command from Alex
+            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
+            command_output, command_error = execute_terminal_command(alex_command)
+            print(create_agent_response("Alex", alex_command, BLUE))
+        elif command_output is None and command_error is None:
+            alex_reprompt = "An error occurred:(most likely due to not just sending the command alone) Would you like to try another command? If so, please provide the command."
+            # get new command from Alex
+            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
+            command_output, command_error = execute_terminal_command(alex_command)
+            print(create_agent_response("Alex", alex_command, BLUE))
+        elif command_output is None and command_error is not None:
+            alex_reprompt = f"An error occurred:(most likely due to not just sending the command alone) {command_error}\n"
+            alex_reprompt += "Would you like to try another command? If so, please provide the command."
+            # get new command from Alex
+            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
+            command_output, command_error = execute_terminal_command(alex_command)
+            print(create_agent_response("Alex", alex_command, BLUE))
+        elif command_output is None and command_error is not None:
+            alex_reprompt = f"An error occurred:(most likely due to not just sending the command alone) {command_error}\n"
+            alex_reprompt += "Would you like to try another command? If so, please provide the command."
+            # get new command from Alex
+            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
+            command_output, command_error = execute_terminal_command(alex_command)
+            print(create_agent_response("Alex", alex_command, BLUE))
+        alex_memory.append({"role": "system", "content": f"Terminal Command Output: {command_output}"})
+        alex_memory.append({"role": "system", "content": f"Terminal Command Error: {command_error}"})
+
         print(f"Terminal Command Output: {command_output}")
+        print(f"Terminal Command Error: {command_error}")
+        
+
+        code = extract_code(alex_response)
+        alex_memory.append({"role": "system", "content": f"Current Code: {code}"})
+        current_error = test_code(code)
+        
 
         if code:
             save_result = perform_file_operation("write", current_code_file, code)
