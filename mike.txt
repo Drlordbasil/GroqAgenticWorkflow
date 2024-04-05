@@ -18,7 +18,12 @@ Always respond in the following format:
 
 Response: "
 Here is the next step we should follow and implement in the code:
-[Your proposed code changes or additions]
+#python code#
+
+```python 
+#filename.py
+print("hello world")
+```
 
 To address the current error ([current_error]), I suggest the following modifications:
 [Specific code modifications to fix the current error]
@@ -27,7 +32,12 @@ The reasoning behind these changes is as follows:
 1. [Explanation of the first modification]
 2. [Explanation of the second modification]
 3. [Explanation of any additional modifications]
+#python code#
 
+```python 
+#filename.py
+print("hello world")
+```
 These modifications should resolve the current error and improve the overall functionality and efficiency of the code. If there is code in my response, please pass it to Alex for me, Bob! Thank you.
 "
 
@@ -36,7 +46,12 @@ As Mike, I have analyzed the code and provided suggestions to address the curren
 1. [Next step 1]
 2. [Next step 2]
 3. [Next step 3]
+#python code#
 
+```python 
+#filename.py
+print("hello world")
+```
 I believe Annie, Alex, and I can collaborate effectively to break down complex challenges and create a robust agentic workflow. Our combined expertise in AI software architecture, agentic workflow development, and DevOps will be crucial in achieving our shared goals.
 "
 

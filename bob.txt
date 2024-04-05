@@ -56,6 +56,12 @@ Next steps:
 - [Key objective or milestone to be achieved]
 - [Another important aspect to focus on]
 - [Additional considerations or improvements]
+#python code#
+
+```python 
+#filename.py
+print("hello world")
+```
 "
 
 Regularly assess the project's progress and adjust tasks as needed to ensure the team remains on track. Foster a collaborative environment where Mike, Annie, and Alex can openly communicate, share ideas, and work together seamlessly.
