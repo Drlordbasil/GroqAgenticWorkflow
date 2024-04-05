@@ -1,13 +1,14 @@
 import os
 import re
-import subprocess
 import logging
 import sys
-import tempfile
 import pickle
+import traceback
 from time import sleep
 from dotenv import load_dotenv
 from openai import OpenAI
+from code_execution_manager import CodeExecutionManager, format_error_message, run_tests, monitor_performance, optimize_code, pass_code_to_alex, send_status_update, generate_documentation, commit_changes
+import datetime
 
 load_dotenv()
 
@@ -26,17 +27,14 @@ YELLOW = "\033[93m"
 BLUE = "\033[94m"
 RESET_COLOR = "\033[0m"
 
-logging.basicConfig(filename='agentic_workflow.log', level=logging.ERROR)
-
-def open_file(filepath):
-    with open(filepath, 'r', encoding='utf-8') as infile:
-        return infile.read()
-
-def save_file(filepath, content):
-    with open(filepath, 'w', encoding='utf-8') as outfile:
-        outfile.write(content)
-    return os.path.exists(filepath)
-
+logging.basicConfig(filename='agentic_workflow.log', level=logging.INFO)
+def get_current_date_and_time():
+    """
+    Returns the current date and time as a string in the format
+    'YYYY-MM-DD HH:MM:SS.ssssss'
+    """
+    now = datetime.datetime.now()
+    return now.strftime('%Y-%m-%d %H:%M:%S.%f')
 def agent_chat(user_input, system_message, memory, model, temperature, max_retries=30, retry_delay=60):
     messages = [
         {"role": "system", "content": system_message},
@@ -62,7 +60,7 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             return response_content
 
         except Exception as e:
-            logging.error(f"Error in agent_chat: {str(e)}")
+            logging.error(f"Error in agent_chat: {format_error_message(e)}")
             retry_count += 1
             if retry_count < max_retries:
                 logging.info(f"Retrying in {retry_delay} seconds... (Attempt {retry_count}/{max_retries})")
@@ -72,225 +70,126 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                 raise e
 
 def extract_code(text):
-    code_block_pattern = re.compile(r'```python(.*?)```', re.DOTALL)
-    code_blocks = code_block_pattern.findall(text)
-    return code_blocks[0].strip() if code_blocks else None
-
-def test_code(code):
-    if not code:
-        return None, None
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        script_path = os.path.join(temp_dir, 'temp_script.py')
-        with open(script_path, 'w') as f:
-            f.write(code)
-
-        try:
-            output = subprocess.check_output(['python', script_path], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
-            return output, None
-        except subprocess.CalledProcessError as e:
-            return None, e.output
-        except subprocess.TimeoutExpired:
-            return None, "Execution timed out after 10 seconds"
-        except Exception as e:
-            return None, str(e)
-
-def execute_terminal_command(command):
     try:
-        result = subprocess.run(command, capture_output=True, text=True, shell=True)
-        return result.stdout, result.stderr
+        code_block_pattern = re.compile(r'```python(.*?)```', re.DOTALL)
+        code_blocks = code_block_pattern.findall(text)
+        return code_blocks[0].strip() if code_blocks else None
     except Exception as e:
-        logging.error(f"Error executing terminal command: {str(e)}")
-        return None, str(e)
+        logging.error(f"Error extracting code: {format_error_message(e)}")
+        return None
 
 def create_agent_response(agent_name, agent_response, agent_color):
     return agent_color + f"\n{agent_name}: " + agent_response + RESET_COLOR
 
-def save_checkpoint(checkpoint_data, checkpoint_file):
+def save_checkpoint(checkpoint_data, checkpoint_file, code):
     with open(checkpoint_file, 'wb') as f:
         pickle.dump(checkpoint_data, f)
+
+    # Save the code to a file in the workspace folder only if it's not None
+    if code:
+        code_file_path = os.path.join("workspace", "generated_code.py")
+        with open(code_file_path, 'w') as code_file:
+            code_file.write(code)
 
 def load_checkpoint(checkpoint_file):
     try:
         with open(checkpoint_file, 'rb') as f:
-            return pickle.load(f)
+            checkpoint_data = pickle.load(f)
+            code = checkpoint_data[-1] if checkpoint_data else ""
+            return checkpoint_data, code
     except FileNotFoundError:
-        return None
+        return None, ""
 
-def get_code_suggestions(code, agent_role):
-    suggestions = ""
-    if agent_role == "Mike":
-        suggestions = "Suggestions for Mike:\n"
-        suggestions += "- ask Bob for help\n"
-        suggestions += "- Consider using more descriptive variable names to improve code readability.\n"
-        suggestions += "- Break down complex functions into smaller, reusable functions.\n"
-        suggestions += "- Add comments to explain the purpose and functionality of key code segments.\n"
-    elif agent_role == "Annie":
-        suggestions = "Suggestions for Annie:\n"
-        suggestions += "- Ask bob for help\n"
-        suggestions += "- Review the code for potential logic errors and edge cases.\n"
-        suggestions += "- Implement proper error handling and provide informative error messages to users.\n"
-        suggestions += "- Ensure the user interface is intuitive and easy to navigate.\n"
-        suggestions += "- Consider adding input validation to prevent unexpected behavior.\n"
-    elif agent_role == "Alex":
+def extract_task(response, agent_name):
+    task_pattern = re.compile(fr'Tasks for {agent_name}:\n1\. (.*?)\n2\.')
+    match = task_pattern.search(response)
+    return match.group(1) if match else ""
 
-        suggestions = "Suggestions for Alex:\n"
-        suggestions += "- Ask Bob for help\n"
-        suggestions += "- Send full robust script code ALWAYS free of placeholders. \n"
-        suggestions += "- Implement a robust logging mechanism to track system activities and errors.\n"
-        suggestions += "- Ensure the code follows best practices for security and compliance.\n"
-        suggestions += "- Optimize the code for performance and efficiency.\n"
-        suggestions += "- Develop comprehensive unit tests to cover critical functionalities.\n"
-        suggestions += "- Automate the testing and deployment process to reduce manual effort.\n"
-        suggestions += "- Set up continuous integration and continuous deployment (CI/CD) pipelines.\n"
-    return suggestions
-
-def perform_file_operation(operation, filepath, content=None):
-    if operation == "read":
-        try:
-            with open(filepath, 'r', encoding='utf-8') as file:
-                file_content = file.read()
-            return f"File '{filepath}' read successfully. Contents:\n{file_content}"
-        except FileNotFoundError:
-            return f"File '{filepath}' not found."
-    elif operation == "write":
-        try:
-            with open(filepath, 'w', encoding='utf-8') as file:
-                file.write(content)
-            return f"File '{filepath}' written successfully with content:\n{content}"
-        except Exception as e:
-            return f"Error writing to file '{filepath}': {str(e)}"
-    elif operation == "append":
-        try:
-            with open(filepath, 'a', encoding='utf-8') as file:
-                file.write(content)
-            return f"Content appended to file '{filepath}' successfully. Appended content:\n{content}"
-        except Exception as e:
-            return f"Error appending to file '{filepath}': {str(e)}"
-    else:
-        return f"Invalid file operation: {operation}"
+def bob_delegate_tasks(bob_response, mike_memory, annie_memory, alex_memory):
+    mike_task = extract_task(bob_response, "Mike")
+    annie_task = extract_task(bob_response, "Annie")
+    alex_task = extract_task(bob_response, "Alex")
+    
+    mike_memory.append({"role": "system", "content": f"Task from Bob: {mike_task}"})
+    annie_memory.append({"role": "system", "content": f"Task from Bob: {annie_task}"})
+    alex_memory.append({"role": "system", "content": f"Task from Bob: {alex_task}"})
+    
+    return mike_task, annie_task, alex_task
 
 def main():
     max_iterations = 100
     checkpoint_file = "agentic_workflow_checkpoint.pkl"
     current_code_file = "current_code.py"
+    code_execution_manager = CodeExecutionManager()
+    date_time = get_current_date_and_time()
+    
+    mike_system_message = code_execution_manager.read_file("mike.txt")
+    annie_system_message = code_execution_manager.read_file("annie.txt")
+    bob_system_message = code_execution_manager.read_file("bob.txt")
+    alex_system_message = code_execution_manager.read_file("alex.txt")
 
-    mike_system_message = open_file("mike.txt")
-    annie_system_message = open_file("annie.txt")
-    bob_system_message = open_file("bob.txt")
-    alex_system_message = open_file("alex.txt")
-
-    checkpoint_data = load_checkpoint(checkpoint_file)
+    checkpoint_data, code = load_checkpoint(checkpoint_file)
     if checkpoint_data:
-        mike_memory, annie_memory, bob_memory, alex_memory, code = checkpoint_data
+        mike_memory, annie_memory, bob_memory, alex_memory, *_ = checkpoint_data
     else:
-        mike_memory, annie_memory, bob_memory, alex_memory, code = [], [], [], [], ""
+        mike_memory, annie_memory, bob_memory, alex_memory = [], [], [], []
+
+    if not code:
+        # Check the workspace folder for existing code files
+        workspace_folder = "workspace"
+        code_files = [f for f in os.listdir(workspace_folder) if f.endswith(".py")]
+        if code_files:
+            current_code_file = os.path.join(workspace_folder, code_files[0])
+            with open(current_code_file, 'r') as file:
+                code = file.read()
 
     print("\n" + "="*40 + " Conversation Start " + "="*40 + "\n")
 
     for i in range(1, max_iterations + 1):
         print("\n" + "-"*30 + f" Iteration {i} " + "-"*30 + "\n")
-        project_output_goal = "The goal of this project is to develop a robust AI-based workflow management system that can automate various tasks and streamline business processes. The system should be scalable, secure, and user-friendly, with a focus on efficiency and reliability. Use the latest AI technologies and best practices to create a cutting-edge solution that meets the needs of our clients and stakeholders. The project timeline is 2 months, and the budget is $500. The success criteria include achieving a minimum accuracy of 95%, reducing manual effort by 50%, and improving overall productivity by 30%."
-        # Bob's turn
-        bob_thoughts = agent_chat(f"You are Bob, the boss of Mike, Annie, and Alex.##project idea and goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal### What are your thoughts on the current state of the project for the goal?", bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
-        bob_input = f"You are Bob, the boss of Mike, Annie, and Alex. Here is the current state of the project:\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nYour current thoughts on state of project{bob_thoughts}\nPlease provide your input as Bob."
+        project_output_goal = f"Current time and start time:{date_time} The goal of this project is to develop a robust AI-based workflow management system that can automate various tasks and streamline business processes. The system should be scalable, secure, and user-friendly, with a focus on efficiency and reliability. Use the latest AI technologies and best practices to create a cutting-edge solution that meets the needs of our clients and stakeholders. The project timeline is 2 hours, and the budget is $500. The success criteria include achieving a minimum accuracy of 95 percent and full code free of placeholder logic."
+        
+        bob_input = f"Current time:{date_time}You are Bob, the boss of Mike, Annie, and Alex. Here is the current state of the project:\n\nProject Goal: {project_output_goal}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Bob, including delegating tasks to Mike, Annie, and Alex based on their expertise and the project requirements."
         bob_response = agent_chat(bob_input, bob_system_message, bob_memory, "mixtral-8x7b-32768", 0.5)
         print(create_agent_response("Bob", bob_response, NEON_GREEN))
 
-        # Mike's turn
-        mike_thoughts = agent_chat(f"You are Mike, an AI software architect and engineer.goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal### What are your thoughts on the current state of the project?", mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.5)
+        mike_task, annie_task, alex_task = bob_delegate_tasks(bob_response, mike_memory, annie_memory, alex_memory)
 
-        mike_input = f"You are Mike, an AI software architect and engineer. goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal###Here is the current state of the project:\n\nBob's message: {bob_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Mike')}\nYour thoughts on the current project{mike_thoughts}\nPlease provide your input as Mike."
+        mike_input = f"Current time:{date_time}You are Mike, an AI software architect and engineer.ALWAYS SEND PYTHON CODE FREE OF PLACEHOLDERS!!!! Here is your task from Bob:\n\nTask: {mike_task}\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Mike."
         mike_response = agent_chat(mike_input, mike_system_message, mike_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Mike", mike_response, CYAN))
-        code = extract_code(mike_response)
-        current_error = test_code(code)
+        mike_code = extract_code(mike_response)
+        current_error = code_execution_manager.test_code(code)
+        pass_code_to_alex(mike_code, alex_memory)
 
-        # Annie's turn
-        annie_thoughts = agent_chat(f"You are Annie, a senior agentic workflow developer.goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal### What are your thoughts on the current state of the project?", annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.5)   
-        annie_input = f"You are Annie, a senior agentic workflow developer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Annie')}\nyour thoughts{annie_thoughts}\nPlease provide your input as Annie."
+        annie_input = f"Current time:{date_time}You are Annie, a senior agentic workflow developer.ALWAYS SEND PYTHON CODE FREE OF PLACEHOLDERS!!!! Here is your task from Bob:\n\nTask: {annie_task}\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Annie."
         annie_response = agent_chat(annie_input, annie_system_message, annie_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Annie", annie_response, YELLOW))
-        code = extract_code(annie_response)
-        current_error = test_code(code)
+        annie_code = extract_code(annie_response)
+        current_error = code_execution_manager.test_code(code)
+        pass_code_to_alex(annie_code, alex_memory)
 
-        # Alex's turn
-        alex_thoughts = agent_chat(f"You are Alex, a DevOps Engineer. goal of team ### \n\n\n{project_output_goal}\n\n\n###end of goal### What are your thoughts on the current state of the project?", alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.5)
-        alex_input = f"You are Alex, a DevOps Engineer. Here is the current state of the project:\n\nBob's message: {bob_response}\nMike's response: {mike_response}\nAnnie's response: {annie_response}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\nSuggestions: {get_code_suggestions(code, 'Alex')}\nyour thoughts{alex_thoughts}\nPlease provide your input as Alex."
+        alex_input = f"Current time:{date_time}You are Alex, a DevOps Engineer. ALWAYS SEND PYTHON CODE FREE OF PLACEHOLDERS!!!!Here is your task from Bob:\n\nTask: {alex_task}\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Alex."
         alex_response = agent_chat(alex_input, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.7)
         print(create_agent_response("Alex", alex_response, BLUE))
-        code = extract_code(alex_response)
-        current_error = test_code(code)
-        alex_command_prompt = "You will respond only with a terminal command. What command would you like to execute? Respond without markdowns and only terminal command you wish ALWAYS when running a command.Act like you are typing on a terminal. Response format: 'python script.py' or 'ls -l' or 'echo Hello World' without quotes."
-        alex_command = agent_chat(alex_command_prompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0.5)
-        print(create_agent_response("Alex", alex_command, BLUE))
-        command_output, command_error = execute_terminal_command(alex_command)
-        if command_output is not None:
-            alex_reprompt = f"here is your output: {command_output} \n"
-            alex_reprompt += "Would you like to save the output to a file? If so, please provide the file path."
-            #get new command from Alex
-            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
-            print(create_agent_response("Alex", alex_command, BLUE))
-        elif command_error is not None:
-            alex_reprompt = f"An error occurred:(most likely due to not just sending the command alone) {command_error}\n"
-            alex_reprompt += "Would you like to try another command? If so, please provide the command."
-            # get new command from Alex
-            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
-            command_output, command_error = execute_terminal_command(alex_command)
-            print(create_agent_response("Alex", alex_command, BLUE))
-        elif command_output is None and command_error is None:
-            alex_reprompt = "An error occurred:(most likely due to not just sending the command alone) Would you like to try another command? If so, please provide the command."
-            # get new command from Alex
-            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
-            command_output, command_error = execute_terminal_command(alex_command)
-            print(create_agent_response("Alex", alex_command, BLUE))
-        elif command_output is None and command_error is not None:
-            alex_reprompt = f"An error occurred:(most likely due to not just sending the command alone) {command_error}\n"
-            alex_reprompt += "Would you like to try another command? If so, please provide the command."
-            # get new command from Alex
-            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
-            command_output, command_error = execute_terminal_command(alex_command)
-            print(create_agent_response("Alex", alex_command, BLUE))
-        elif command_output is None and command_error is not None:
-            alex_reprompt = f"An error occurred:(most likely due to not just sending the command alone) {command_error}\n"
-            alex_reprompt += "Would you like to try another command? If so, please provide the command."
-            # get new command from Alex
-            alex_command = agent_chat(alex_reprompt, alex_system_message, alex_memory, "mixtral-8x7b-32768", 0)
-            command_output, command_error = execute_terminal_command(alex_command)
-            print(create_agent_response("Alex", alex_command, BLUE))
-        alex_memory.append({"role": "system", "content": f"Terminal Command Output: {command_output}"})
-        alex_memory.append({"role": "system", "content": f"Terminal Command Error: {command_error}"})
+        alex_code = extract_code(alex_response)
+        current_error = code_execution_manager.test_code(code)
 
-        print(f"Terminal Command Output: {command_output}")
-        print(f"Terminal Command Error: {command_error}")
-        
-
-        code = extract_code(alex_response)
-        alex_memory.append({"role": "system", "content": f"Current Code: {code}"})
-        current_error = test_code(code)
-        
+        code = alex_code or code
 
         if code:
-            save_result = perform_file_operation("write", current_code_file, code)
-            print(f"\n[FILE OPERATION] {save_result}")
-            test_code_output, test_code_error = test_code(code)
-            if test_code_output:
-                print(f"\n[TEST CODE OUTPUT]\n{test_code_output}")
-            if test_code_error:
-                print(f"\n[TEST CODE ERROR]\n{test_code_error}")
+            run_tests(code)
+            monitor_performance(code)
+            optimize_code(code)
+            commit_changes(code)
+            generate_documentation(code)
 
+        send_status_update(mike_memory, annie_memory, alex_memory, f"Iteration {i} completed. Code updated and tested.")
 
         checkpoint_data = (mike_memory, annie_memory, bob_memory, alex_memory, code)
-        save_checkpoint(checkpoint_data, checkpoint_file)
-
-
-
+        save_checkpoint(checkpoint_data, checkpoint_file, code)
 
     print("\n" + "="*40 + " Conversation End " + "="*40 + "\n")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\nKeyboard interrupt detected. Exiting the program.")
-        sys.exit(0)
+    main()
