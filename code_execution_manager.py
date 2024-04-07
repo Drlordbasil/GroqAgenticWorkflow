@@ -9,6 +9,9 @@ import ast
 import astroid
 import pylint.lint
 import traceback
+import pytest
+from pylint import config
+
 class CodeExecutionManager:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -23,7 +26,7 @@ class CodeExecutionManager:
             self.logger.info(f"File '{filepath}' saved successfully.")
             return True
         except Exception as e:
-            self.logger.error(f"Error saving file '{filepath}': {str(e)}")
+            self.logger.exception(f"Error saving file '{filepath}': {str(e)}")
             return False
 
     def read_file(self, filepath):
@@ -37,7 +40,7 @@ class CodeExecutionManager:
             self.logger.error(f"File '{filepath}' not found.")
             return None
         except Exception as e:
-            self.logger.error(f"Error reading file '{filepath}': {str(e)}")
+            self.logger.exception(f"Error reading file '{filepath}': {str(e)}")
             return None
 
     def test_code(self, code):
@@ -50,18 +53,21 @@ class CodeExecutionManager:
                 f.write(code)
 
             try:
-                output = subprocess.check_output(['python', '-m', 'unittest', 'discover', temp_dir], universal_newlines=True, stderr=subprocess.STDOUT, timeout=30)
-                self.logger.info("Tests execution successful.")
-                return output, None
-            except subprocess.CalledProcessError as e:
-                self.logger.error(f"Tests execution error: {e.output}")
-                return None, e.output
+                # Use pytest to run tests and capture output
+                result = pytest.main([script_path], capture_output=True)
+                
+                if result == 0:
+                    self.logger.info("Tests execution successful.")
+                    return "All tests passed.", None
+                else:
+                    self.logger.error("Tests execution failed.")
+                    return None, "Some tests failed."
             except subprocess.TimeoutExpired:
                 self.logger.error("Tests execution timed out after 30 seconds.")
                 return None, "Execution timed out after 30 seconds"
             except Exception as e:
-                self.logger.error(f"Tests execution error: {str(e)}")
-                return None, str(e)
+                self.logger.exception(f"Tests execution error: {str(e)}")
+                return None, f"Error: {str(e)}\nTraceback: {traceback.format_exc()}"
 
     def execute_command(self, command):
         try:
@@ -69,8 +75,84 @@ class CodeExecutionManager:
             self.logger.info(f"Command executed: {command}")
             return result.stdout, result.stderr
         except Exception as e:
-            self.logger.error(f"Error executing command: {str(e)}")
+            self.logger.exception(f"Error executing command: {str(e)}")
             return None, str(e)
+
+    def optimize_code(self, code):
+        try:
+            # Save the code to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as tmp:
+                tmp.write(code.encode('utf-8'))
+                tmp_file_path = tmp.name
+
+            # Configure Pylint with custom settings
+            pylint_config_path = pylint.config.find_pylintrc()
+            pylint_args = [tmp_file_path, "--rcfile", pylint_config_path]
+
+            # Run Pylint analysis
+            pylint_output = subprocess.check_output(["pylint"] + pylint_args, universal_newlines=True)
+
+            # Parse Pylint output and provide actionable suggestions
+            suggestions = []
+            for line in pylint_output.splitlines():
+                if line.startswith("C:") or line.startswith("R:") or line.startswith("W:"):
+                    msg_id, _, msg = line.partition(":")
+                    suggestion = f"Suggestion: {msg.strip()}"
+                    if msg_id.startswith("C:"):
+                        suggestion += " (Convention Violation)"
+                    elif msg_id.startswith("R:"):
+                        suggestion += " (Refactoring Opportunity)"
+                    elif msg_id.startswith("W:"):
+                        suggestion += " (Potential Bug)"
+                    suggestions.append(suggestion)
+
+            # Cleanup temporary file
+            os.remove(tmp_file_path)
+
+            if suggestions:
+                optimization_suggestions = "\n".join(suggestions)
+                self.logger.info(f"Optimization suggestions:\n{optimization_suggestions}")
+                return optimization_suggestions
+            else:
+                self.logger.info("No optimization suggestions found.")
+                return "No optimization suggestions found."
+
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Pylint analysis failed: {e.output}")
+            return None
+
+        except Exception as e:
+            self.logger.exception(f"Error during optimization: {str(e)}")
+            return None
+
+    def format_code(self, code):
+        try:
+            # Save the code to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as tmp:
+                tmp.write(code.encode('utf-8'))
+                tmp_file_path = tmp.name
+
+            # Run Black code formatter
+            subprocess.run(["black", tmp_file_path], check=True)
+
+            # Read the formatted code from the temporary file
+            with open(tmp_file_path, "r", encoding="utf-8") as f:
+                formatted_code = f.read()
+
+            # Cleanup temporary file
+            os.remove(tmp_file_path)
+
+            self.logger.info("Code formatting completed.")
+            return formatted_code
+
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Code formatting failed: {e.output}")
+            return None
+
+        except Exception as e:
+            self.logger.exception(f"Error during code formatting: {str(e)}")
+            return None
+
 
 def format_error_message(error):
     return f"Error: {str(error)}\nTraceback: {traceback.format_exc()}"
@@ -109,39 +191,18 @@ def monitor_performance(code):
     return performance_data
 
 def optimize_code(code):
-    try:
-        # Save the code to a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as tmp:
-            tmp.write(code.encode('utf-8'))
-            tmp_file_path = tmp.name
-
-        # Setup Pylint to use the temporary file
-        pylint_output = io.StringIO()
-
-        # Define a custom reporter class based on BaseReporter
-        class CustomReporter(pylint.reporters.BaseReporter):
-            def _display(self, layout):
-                pylint_output.write(str(layout))
-
-        pylint_args = [tmp_file_path]
-        pylint_reporter = pylint.lint.Run(pylint_args, reporter=CustomReporter(), do_exit=False)
-
-        # Retrieve optimization suggestions
-        optimization_suggestions = pylint_output.getvalue()
+    code_execution_manager = CodeExecutionManager()
+    optimization_suggestions = code_execution_manager.optimize_code(code)
+    if optimization_suggestions:
         print(f"\n[OPTIMIZATION SUGGESTIONS]\n{optimization_suggestions}")
+    return optimization_suggestions
 
-        # Cleanup temporary file
-        os.remove(tmp_file_path)
-
-        return optimization_suggestions
-    except SyntaxError as e:
-        print(f"SyntaxError: {e}")
-        return None
-    except Exception as e:
-        print(f"Error during optimization: {str(e)}")
-        return None
-
-
+def format_code(code):
+    code_execution_manager = CodeExecutionManager()
+    formatted_code = code_execution_manager.format_code(code)
+    if formatted_code:
+        print(f"\n[FORMATTED CODE]\n{formatted_code}")
+    return formatted_code
 
 def pass_code_to_alex(code, alex_memory):
     alex_memory.append({"role": "system", "content": f"Code from Mike and Annie: {code}"})
@@ -169,6 +230,7 @@ def generate_documentation(code):
     except SyntaxError as e:
         print(f"SyntaxError: {e}")
         return None
+
 def commit_changes(code):
     subprocess.run(["git", "add", "workspace"])
     subprocess.run(["git", "commit", "-m", "Automated code commit"])
