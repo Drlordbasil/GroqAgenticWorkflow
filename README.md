@@ -11,6 +11,8 @@ Agentic Workflow is a Python program that simulates a collaborative development 
 - Dependency management: The program updates dependencies based on the requirements specified in the `requirements.txt` file.
 - Code refactoring and optimization: It applies code refactoring techniques using tools like black and optimizes the code using compilation.
 - Deployment: The program simulates the deployment process by executing the final version of the code.
+- ![image](https://github.com/Drlordbasil/GroqAgenticWorkflow/assets/126736516/75d3ee9f-ee5f-40ba-9db7-9509ee8056c3)
+
 ![image](https://github.com/Drlordbasil/GroqAgenticWorkflow/assets/126736516/e8980c6a-0c07-4f34-a4a8-9a09f9961c40)
 
 ## Prerequisites
