@@ -11,6 +11,8 @@ from code_execution_manager import CodeExecutionManager, format_error_message, r
 import datetime
 import zlib
 from voice_tools import VoiceTools
+from crypto_wallet import CryptoWallet
+from browser_tools import BrowserTools  # Import the BrowserTools class
 
 load_dotenv()
 
@@ -146,6 +148,7 @@ def main():
     code_execution_manager = CodeExecutionManager()
     date_time = get_current_date_and_time()
     voice_tools = VoiceTools()
+    browser_tools = BrowserTools()  # Create an instance of BrowserTools
 
     system_messages = {
         "mike": code_execution_manager.read_file("mike.txt"),
@@ -168,15 +171,25 @@ def main():
             with open(current_code_file, 'r') as file:
                 code = file.read()
 
+    mike_wallet = CryptoWallet("mike_wallet")
+    annie_wallet = CryptoWallet("annie_wallet")
+    bob_wallet = CryptoWallet("bob_wallet")
+    alex_wallet = CryptoWallet("alex_wallet")
+
     print_block("Agentic Workflow", character='*')
     print_block(f"Start Time: {date_time}")
 
     for i in range(1, max_iterations + 1):
         print_block(f"Iteration {i}")
 
-        project_output_goal = f"Current time and start time:{date_time} The goal of this project is to make code that we can use as a team. The code can be ran automatically due to your environment. You'll see the outputs in your next response. All code you create is automatically ran. Whatever programs you create can be used as programs to make other files easily. Find workarounds. Find ways to modify your enviroment to your needs. Make money for the company. You need money, we need to profit as a team to get known. Our company needs to be the first AI built and ran company that ACTUALLY makes a profit in the real world."
+        project_output_goal = f"Current time and start time:{date_time} create a project that trains an entreprenuer AI that can generate business ideas and plans. The AI should be able to analyze market trends, identify opportunities, and provide actionable insights to help entrepreneurs succeed. The project should include a training pipeline, data collection, model development, and evaluation metrics to measure the AI's performance. The code should be well-structured, documented, and optimized for efficiency and scalability. The project should be completed within the specified timeline and budget."
+
+        mike_wallet_info = mike_wallet.get_wallet_info()
+        annie_wallet_info = annie_wallet.get_wallet_info()
+        bob_wallet_info = bob_wallet.get_wallet_info()
+        alex_wallet_info = alex_wallet.get_wallet_info()
         
-        bob_input = f"Current time:{date_time}You are Bob(money minded micromanager), the boss of Mike, Annie, and Alex.Make sure no one sends code that reverts your progress as code is directly extracted from all responses. Here is the current state of the project:\n\nProject Goal: {project_output_goal}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Bob, including delegating tasks to Mike, Annie, and Alex based on their expertise and the project requirements. Provide context and examples to guide them in providing high-quality responses and code snippets that align with the project's goals and best practices. Encourage them to provide detailed explanations and rationale behind their code modifications and suggestions to facilitate better collaboration and knowledge sharing."
+        bob_input = f"Current time:{date_time}You are Bob(money minded micromanager), the boss of Mike, Annie, and Alex.Make sure no one sends code that reverts your progress as code is directly extracted from all responses.\nMike's Wallet: {mike_wallet_info}\nAnnie's Wallet: {annie_wallet_info}\nAlex's Wallet: {alex_wallet_info}\nHere is the current state of the project:\n\nProject Goal: {project_output_goal}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Bob, including delegating tasks to Mike, Annie, and Alex based on their expertise and the project requirements. Provide context and examples to guide them in providing high-quality responses and code snippets that align with the project's goals and best practices. Encourage them to provide detailed explanations and rationale behind their code modifications and suggestions to facilitate better collaboration and knowledge sharing."
         bob_response = agent_chat(bob_input, system_messages["bob"], memory["bob"], "mixtral-8x7b-32768", 0.5)
         print(f"Bob's Response:\n{bob_response}")
         bob_summary = generate_summary(bob_response, "Bob")
@@ -184,7 +197,7 @@ def main():
             voice_tools.text_to_speech(bob_summary, "Bob")
 
         for agent in ["mike", "annie", "alex"]:
-            agent_input = f"Current time:{date_time}You are {agent.capitalize()}, an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}. Here is your task from Bob:\n\nTask: {extract_task(bob_response, agent.capitalize())}\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as {agent.capitalize()}, including detailed explanations and rationale behind your code modifications and suggestions. Write test cases alongside your code modifications to maintain a test-driven development approach. Provide meaningful comments and docstrings within your code to enhance the generated documentation."
+            agent_input = f"Current time:{date_time}You are {agent.capitalize()}, an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}. Here is your task from Bob:\n\nTask: {extract_task(bob_response, agent.capitalize())}\n\nYour Wallet: {eval(f'{agent}_wallet_info')}\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as {agent.capitalize()}, including detailed explanations and rationale behind your code modifications and suggestions. Write test cases alongside your code modifications to maintain a test-driven development approach. Provide meaningful comments and docstrings within your code to enhance the generated documentation. If you require additional information or resources, you can use the BrowserTools class to research relevant topics and libraries."
             agent_response = agent_chat(agent_input, system_messages[agent], memory[agent], "mixtral-8x7b-32768", 0.7)
             print(f"{agent.capitalize()}'s Response:\n{agent_response}")
             agent_summary = generate_summary(agent_response, agent.capitalize())
@@ -197,6 +210,13 @@ def main():
             elif agent == "alex":
                 code = agent_code or code
                 current_error = code_execution_manager.test_code(code)[1]
+
+            # Perform research using BrowserTools if requested by the agent
+            research_topic = extract_research_topic(agent_response)
+            if research_topic:
+                research_results = browser_tools.research_topic(research_topic)
+                research_summary = "\n".join([f"Title: {result['title']}\nURL: {result['url']}\nContent: {result['content'][:100]}..." for result in research_results])
+                memory[agent].append({"role": "system", "content": f"Research results for topic '{research_topic}':\n{research_summary}"})
         
         if code:
             print_block("Running Tests")
@@ -221,14 +241,25 @@ def main():
         
         send_status_update(memory["mike"], memory["annie"], memory["alex"], f"Iteration {i} completed. Code updated and tested.")
         
+        mike_wallet.get_wallet_info()
+        annie_wallet.get_wallet_info()
+        bob_wallet.get_wallet_info()
+        alex_wallet.get_wallet_info()
+        
         checkpoint_data = [memory[key] for key in ["mike", "annie", "bob", "alex"]] + [code]
         save_checkpoint(checkpoint_data, checkpoint_file, code)
 
     print_block("Agentic Workflow Completed", character='*')
+    browser_tools.close()  # Close the browser
 
 def extract_task(response, agent_name):
     task_pattern = re.compile(fr'Tasks for {agent_name}:\n1\. (.*?)\n2\.')
     match = task_pattern.search(response)
+    return match.group(1) if match else ""
+
+def extract_research_topic(response):
+    research_pattern = re.compile(r'Research topic: (.*)')
+    match = research_pattern.search(response)
     return match.group(1) if match else ""
 
 if __name__ == "__main__":
