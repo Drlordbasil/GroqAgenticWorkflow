@@ -42,6 +42,14 @@ class CodeExecutionManager:
         except Exception as e:
             self.logger.exception(f"Error reading file '{filepath}': {str(e)}")
             return None
+    def list_files_in_workspace(self):
+        try:
+            files = os.listdir(self.workspace_folder)
+            self.logger.info("List of files in workspace retrieved successfully.")
+            return files
+        except Exception as e:
+            self.logger.exception(f"Error listing files in workspace: {str(e)}")
+            return None
 
     def test_code(self, code):
         if not code:
@@ -234,3 +242,4 @@ def generate_documentation(code):
 def commit_changes(code):
     subprocess.run(["git", "add", "workspace"])
     subprocess.run(["git", "commit", "-m", "Automated code commit"])
+    subprocess.run(["git", "push"])
