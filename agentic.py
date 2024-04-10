@@ -74,7 +74,7 @@ def main():
         #alex_wallet_info = alex_wallet.get_wallet_info()
         
         bob_input = f"[python experts only, dont let them write crap files.]Current time:{date_time}You are Bob(money minded micromanager), the boss of Mike, Annie, and Alex.Make sure no one sends code that reverts your progress as code is directly extracted from all responses.\nHere is the current state of the project:\n\nProject Goal: {project_output_goal}\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as Bob, including delegating tasks to Mike, Annie, and Alex based on their expertise and the project requirements. Provide context and examples to guide them in providing high-quality responses and code snippets that align with the project's goals and best practices. Encourage them to provide detailed explanations and rationale behind their code modifications and suggestions to facilitate better collaboration and knowledge sharing. If you require additional information or resources, you can use the BrowserTools class to research relevant topics and libraries. current files in workspace: {files}. Only code that is directly extracted from the responses of the agents is allowed. Send robust error free, robust, and free of placeholders code."
-        rewrite_input = agent_chat(f"rewrite this to better push coding goals and robust logic{bob_input} ", system_messages["bob"], memory["bob"], "mixtral-8x7b-32768", 0.3)
+        rewrite_input = agent_chat(f"as a AI prompt engineering expert,rewrite this to better push coding goals and robust logic{bob_input} ", system_messages["bob"], memory["bob"], "mixtral-8x7b-32768", 0.3)
 
         bob_response = agent_chat(rewrite_input, system_messages["bob"], memory["bob"], "mixtral-8x7b-32768", 0.5)
         print(f"Bob's Response:\n{bob_response}")
@@ -84,14 +84,15 @@ def main():
 
         for agent in ["mike", "annie", "alex"]:
             agent_input = f"[Write robust python logic in full form free of placeholders and make sure it isnt crap code]Current time:{date_time}DO NOT CREATE TEST FILES OR USELESS CODE JUST CREATE REAL WORLD CODE THAT CAN BE USED IN A PROJECT FOR REAL WORLD PROFITS.You are {agent.capitalize()}, an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}. Here is your task from Bob:\n\nTask: {extract_task(bob_response, agent.capitalize())}\n\n\n\nCurrent code: {code}\nCurrent error: {current_error if 'current_error' in locals() else 'None'}\n\nPlease provide your input as {agent.capitalize()}, including detailed explanations and rationale behind your code modifications and suggestions"
-            rewrite_input = agent_chat(f"rewrite this to better follow steps for coding{agent_input}", system_messages[agent], memory[agent], "mixtral-8x7b-32768", 0.7)
+            rewrite_input = agent_chat(f"as a AI prompt engineering expert rewrite this to better follow steps for coding{agent_input}", system_messages[agent], memory[agent], "mixtral-8x7b-32768", 0.7)
             agent_response = agent_chat(rewrite_input, system_messages[agent], memory[agent], "mixtral-8x7b-32768", 0.7)
             print(f"{agent.capitalize()}'s Response:\n{agent_response}")
             #agent_summary = generate_summary(agent_response, agent.capitalize())
             #if agent_summary:
                 #voice_tools.text_to_speech(agent_summary, agent.capitalize())
             agent_code = extract_code(agent_response)
-            
+            agent_code = agent_chat(f"Refactor this code and improve it removing any and all placeholders:\n\n {agent_code}", system_messages[agent], memory[agent], "mixtral-8x7b-32768", 0.7)
+            agent_code = extract_code(agent_code)
             if agent in ["mike", "annie"]:
                 pass_code_to_alex(agent_code, memory["alex"])
 
@@ -99,11 +100,12 @@ def main():
                 code = agent_code or code
                 current_error = code_execution_manager.test_code(code)[1]
                 if current_error:
-                    memory["alex"].append({"role": "system", "content": f"Error in code: {current_error}"})
+                    memory["alex"].append({"role": "system", "content": f"Error in code: {current_error} code not saved."})
                 else:
-                    memory["alex"].append({"role": "system", "content": "Code execution successful"})
+                    
                     file_name = generate_file_name(code)
                     code_execution_manager.save_file(file_name, code)
+                    memory["alex"].append({"role": "system", "content": f"Code execution successful and error free. Code saved in workspace as {file_name}."})
 
             # Perform research using BrowserTools if requested by the agent
             research_topic = extract_research_topic(agent_response)
