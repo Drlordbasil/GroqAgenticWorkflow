@@ -107,7 +107,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ## Credits
 
 - **[Dr Lord Basil](https://github.com/Drlordbasil)** - *Initial work*
-
+- **[Java Cliente](https://github.com/javacaliente)**
 ---
 
 ## How to Get Help
