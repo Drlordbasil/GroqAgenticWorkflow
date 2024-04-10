@@ -1,3 +1,4 @@
+import json
 from dotenv import load_dotenv
 from openai import OpenAI
 import datetime
@@ -7,6 +8,11 @@ import re
 import pickle
 import zlib
 from time import sleep
+from browser_tools import BrowserTools
+from code_execution_manager import CodeExecutionManager
+from crypto_wallet import CryptoWallet
+from task_manager import TaskManager
+import spacy
 
 load_dotenv()
 
@@ -26,10 +32,172 @@ def get_current_date_and_time():
     return now.strftime('%Y-%m-%d %H:%M:%S.%f')
 
 def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=10):
+    browser_tools = BrowserTools()
+    code_execution_manager = CodeExecutionManager()
+    mike_wallet = CryptoWallet("mike_wallet")
+    annie_wallet = CryptoWallet("annie_wallet")
+    bob_wallet = CryptoWallet("bob_wallet")
+    alex_wallet = CryptoWallet("alex_wallet")
+    nlp = spacy.load("en_core_web_sm")
+    task_manager = TaskManager(nlp)
+
     messages = [
         {"role": "system", "content": system_message},
+        
+        {"role": "system", "content": f"available functions: search_google, scrape_page, test_code, optimize_code, get_wallet_info, send_transaction, extract_tasks, update_task_status. You can use these functions to interact with the system by simply providing the required parameters. For example, you can use 'search_google' to search for information on a specific topic. You can also provide code for the agent to work on. Current time: {get_current_date_and_time()}"},
         *memory[-5:],
         {"role": "user", "content": user_input}
+    ]
+
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "search_google",
+                "description": "Search Google for relevant information",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The search query",
+                        }
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "scrape_page",
+                "description": "Scrape a web page for relevant information",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "The URL of the web page to scrape",
+                        }
+                    },
+                    "required": ["url"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "test_code",
+                "description": "Test the provided code",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The code to test",
+                        }
+                    },
+                    "required": ["code"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "optimize_code",
+                "description": "Optimize the provided code",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The code to optimize",
+                        }
+                    },
+                    "required": ["code"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_wallet_info",
+                "description": "Get information about a wallet",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "wallet_name": {
+                            "type": "string",
+                            "description": "The name of the wallet (e.g., 'mike_wallet', 'annie_wallet', 'bob_wallet', 'alex_wallet')",
+                        }
+                    },
+                    "required": ["wallet_name"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "send_transaction",
+                "description": "Send a transaction from a wallet",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "wallet_name": {
+                            "type": "string",
+                            "description": "The name of the wallet (e.g., 'mike_wallet', 'annie_wallet', 'bob_wallet', 'alex_wallet')",
+                        },
+                        "destination_address": {
+                            "type": "string",
+                            "description": "The destination address for the transaction",
+                        },
+                        "amount": {
+                            "type": "integer",
+                            "description": "The amount to send in the transaction",
+                        }
+                    },
+                    "required": ["wallet_name", "destination_address", "amount"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "extract_tasks",
+                "description": "Extract tasks from the provided text",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "description": "The text to extract tasks from",
+                        }
+                    },
+                    "required": ["text"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "update_task_status",
+                "description": "Update the status of a task",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task": {
+                            "type": "object",
+                            "description": "The task to update",
+                        },
+                        "status": {
+                            "type": "string",
+                            "description": "The new status of the task",
+                        }
+                    },
+                    "required": ["task", "status"],
+                },
+            },
+        },
     ]
 
     retry_count = 0
@@ -38,20 +206,61 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             chat_completion = client["groq_client"].chat.completions.create(
                 model=model,
                 messages=messages,
+                tools=tools,
+                tool_choice="auto",
                 max_tokens=32768,
                 temperature=temperature,
             )
 
-            response_content = chat_completion.choices[0].message.content
+            response_message = chat_completion.choices[0].message
+            tool_calls = response_message.tool_calls
+
+            if tool_calls:
+                available_functions = {
+                    "search_google": browser_tools.search_google,
+                    "scrape_page": browser_tools.scrape_page,
+                    "test_code": code_execution_manager.test_code,
+                    "optimize_code": code_execution_manager.optimize_code,
+                    "get_wallet_info": lambda wallet_name: globals()[wallet_name].get_wallet_info(),
+                    "send_transaction": lambda wallet_name, destination_address, amount: globals()[wallet_name].send_transaction(destination_address, amount),
+                    "extract_tasks": task_manager.extract_tasks,
+                    "update_task_status": task_manager.update_task_status,
+                }
+                messages.append(response_message)
+                
+                for tool_call in tool_calls:
+                    function_name = tool_call.function.name
+                    function_to_call = available_functions[function_name]
+                    function_args = json.loads(tool_call.function.arguments)
+                    function_response = function_to_call(**function_args)
+                    messages.append(
+                        {
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                        }
+                    )
+                
+                second_response = client["groq_client"].chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    max_tokens=32768,
+                    temperature=temperature,
+                )
+                
+                response_content = second_response.choices[0].message.content
+            else:
+                response_content = response_message.content
+            
             truncated_response = response_content[:1000]
             memory.append({"role": "system", "content": truncated_response})
-            memory.append({"role": "user", "content": "you can use Research topic: (research topic here) to provide a research topic for the agent to work on. Tasks for agent_name: to provide tasks for the agent to work on. You can also provide code for the agent to work on."})
+            memory.append({"role": "user", "content": "You can use Research topic: (research topic here) to provide a research topic for the agent to work on. Tasks for agent_name: to provide tasks for the agent to work on. You can also provide code for the agent to work on."})
             memory.append({"role": "user", "content": user_input})
             sleep(10)
             return response_content
 
         except Exception as e:
-            #logging.error(f"Error in agent_chat: {format_error_message(e)}")
             retry_count += 1
             if retry_count < max_retries:
                 logging.info(f"Retrying in {retry_delay} seconds... (Attempt {retry_count}/{max_retries})")
@@ -59,6 +268,8 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             else:
                 logging.error(f"Max retries exceeded. Raising the exception.")
                 raise e
+
+
 
 def extract_code(text):
     try:
