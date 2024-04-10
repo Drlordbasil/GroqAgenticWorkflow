@@ -13,7 +13,9 @@ from code_execution_manager import CodeExecutionManager
 from crypto_wallet import CryptoWallet
 from task_manager import TaskManager
 import spacy
-
+from langchain.prompts import ChatPromptTemplate
+from langchain_groq import ChatGroq
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
 load_dotenv()
 
 api_keys = {
@@ -31,22 +33,20 @@ def get_current_date_and_time():
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d %H:%M:%S.%f')
 
-def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=10):
+
+
+
+def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=10, agent_name=None):
     browser_tools = BrowserTools()
     code_execution_manager = CodeExecutionManager()
-    mike_wallet = CryptoWallet("mike_wallet")
-    annie_wallet = CryptoWallet("annie_wallet")
-    bob_wallet = CryptoWallet("bob_wallet")
-    alex_wallet = CryptoWallet("alex_wallet")
+    
     nlp = spacy.load("en_core_web_sm")
     task_manager = TaskManager(nlp)
 
     messages = [
-        {"role": "system", "content": system_message},
-        
-        {"role": "system", "content": f"available functions: search_google, scrape_page, test_code, optimize_code, get_wallet_info, send_transaction, extract_tasks, update_task_status. You can use these functions to interact with the system by simply providing the required parameters. For example, you can use 'search_google' to search for information on a specific topic. You can also provide code for the agent to work on. Current time: {get_current_date_and_time()}"},
-        *memory[-5:],
-        {"role": "user", "content": user_input}
+        SystemMessage(content=system_message),
+        *[AIMessage(content=msg["content"]) if msg["role"] == "assistant" else HumanMessage(content=msg["content"]) for msg in memory[-5:]],
+        HumanMessage(content=user_input)
     ]
 
     tools = [
@@ -121,48 +121,6 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
         {
             "type": "function",
             "function": {
-                "name": "get_wallet_info",
-                "description": "Get information about a wallet",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "wallet_name": {
-                            "type": "string",
-                            "description": "The name of the wallet (e.g., 'mike_wallet', 'annie_wallet', 'bob_wallet', 'alex_wallet')",
-                        }
-                    },
-                    "required": ["wallet_name"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "send_transaction",
-                "description": "Send a transaction from a wallet",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "wallet_name": {
-                            "type": "string",
-                            "description": "The name of the wallet (e.g., 'mike_wallet', 'annie_wallet', 'bob_wallet', 'alex_wallet')",
-                        },
-                        "destination_address": {
-                            "type": "string",
-                            "description": "The destination address for the transaction",
-                        },
-                        "amount": {
-                            "type": "integer",
-                            "description": "The amount to send in the transaction",
-                        }
-                    },
-                    "required": ["wallet_name", "destination_address", "amount"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
                 "name": "extract_tasks",
                 "description": "Extract tasks from the provided text",
                 "parameters": {
@@ -200,20 +158,29 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
         },
     ]
 
+    chat = ChatGroq(temperature=temperature, model_name=model)
+    prompt = ChatPromptTemplate.from_messages(messages)
+
+    chain = prompt | chat
+
     retry_count = 0
     while retry_count < max_retries:
         try:
-            chat_completion = client["groq_client"].chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=tools,
-                tool_choice="auto",
-                max_tokens=32768,
-                temperature=temperature,
-            )
+            print(f"\n🚀 Iteration {retry_count + 1} - Engaging {agent_name if agent_name else 'AI Agent'} 🚀")
+            print(f"🧠 System Message: {system_message}")
+            print(f"👤 User Input: {user_input}")
 
-            response_message = chat_completion.choices[0].message
-            tool_calls = response_message.tool_calls
+            chat_completion = chain.invoke({"text": user_input})
+            response_message = chat_completion.content
+
+            print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Response:")
+            print(f"{response_message}\n")
+
+            tool_calls = []
+            try:
+                tool_calls = json.loads(response_message).get("tool_calls", [])
+            except json.JSONDecodeError:
+                pass
 
             if tool_calls:
                 available_functions = {
@@ -221,56 +188,57 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                     "scrape_page": browser_tools.scrape_page,
                     "test_code": code_execution_manager.test_code,
                     "optimize_code": code_execution_manager.optimize_code,
-                    "get_wallet_info": lambda wallet_name: globals()[wallet_name].get_wallet_info(),
-                    "send_transaction": lambda wallet_name, destination_address, amount: globals()[wallet_name].send_transaction(destination_address, amount),
                     "extract_tasks": task_manager.extract_tasks,
                     "update_task_status": task_manager.update_task_status,
                 }
-                messages.append(response_message)
+                messages.append(AIMessage(content=response_message))
                 
                 for tool_call in tool_calls:
-                    function_name = tool_call.function.name
+                    function_name = tool_call["function"]["name"]
                     function_to_call = available_functions[function_name]
-                    function_args = json.loads(tool_call.function.arguments)
+                    function_args = tool_call["function"]["arguments"]
+                    
+                    print(f"🛠️ Executing tool: {function_name}")
+                    print(f"📥 Tool arguments: {function_args}")
+
                     function_response = function_to_call(**function_args)
+
+                    print(f"📤 Tool response: {function_response}")
+
                     messages.append(
                         {
-                            "tool_call_id": tool_call.id,
+                            "tool_call_id": tool_call["id"],
                             "role": "tool",
                             "name": function_name,
                             "content": function_response,
                         }
                     )
                 
-                second_response = client["groq_client"].chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=32768,
-                    temperature=temperature,
-                )
-                
-                response_content = second_response.choices[0].message.content
+                second_response = chain.invoke({"text": user_input})
+                response_content = second_response.content
+
+                print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Updated Response:")
+                print(f"{response_content}\n")
+
             else:
-                response_content = response_message.content
+                response_content = response_message
             
             truncated_response = response_content[:1000]
-            memory.append({"role": "system", "content": truncated_response})
-            memory.append({"role": "user", "content": "You can use Research topic: (research topic here) to provide a research topic for the agent to work on. Tasks for agent_name: to provide tasks for the agent to work on. You can also provide code for the agent to work on."})
+            memory.append({"role": "assistant", "content": truncated_response})
             memory.append({"role": "user", "content": user_input})
+
             sleep(10)
             return response_content
 
         except Exception as e:
             retry_count += 1
             if retry_count < max_retries:
-                logging.info(f"Retrying in {retry_delay} seconds... (Attempt {retry_count}/{max_retries})")
+                print(f"❌ Error encountered: {str(e)}")
+                print(f"🔄 Retrying in {retry_delay} seconds... (Attempt {retry_count}/{max_retries})")
                 sleep(retry_delay)
             else:
-                logging.error(f"Max retries exceeded. Raising the exception.")
+                print(f"❌ Max retries exceeded. Raising the exception.")
                 raise e
-
-
-
 def extract_code(text):
     try:
         code_block_pattern = re.compile(r'```python(.*?)```', re.DOTALL)
