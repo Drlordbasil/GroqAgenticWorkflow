@@ -1,3 +1,6 @@
+
+![image](https://github.com/Drlordbasil/GroqAgenticWorkflow/assets/126736516/b010504d-43b8-4faa-91ba-ec0a5ab83091)
+
 # Agentic Workflow
 
 Agentic Workflow is a Python program that simulates a collaborative development process among multiple AI agents. The agents, named Mike, Annie, Alex, and their boss Bob, work together to iteratively improve and refine a codebase. The program showcases how AI agents can assist in software development tasks such as code review, testing, optimization, and deployment.
