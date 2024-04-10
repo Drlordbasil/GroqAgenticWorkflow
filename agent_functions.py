@@ -45,6 +45,7 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             response_content = chat_completion.choices[0].message.content
             truncated_response = response_content[:1000]
             memory.append({"role": "system", "content": truncated_response})
+            memory.append({"role": "user", "content": "you can use Research topic: (research topic here) to provide a research topic for the agent to work on. Tasks for agent_name: to provide tasks for the agent to work on. You can also provide code for the agent to work on."})
             memory.append({"role": "user", "content": user_input})
             sleep(10)
             return response_content

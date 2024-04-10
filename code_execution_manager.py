@@ -62,7 +62,7 @@ class CodeExecutionManager:
 
             try:
                 # Use pytest to run tests and capture output
-                result = pytest.main([script_path], capture_output=True)
+                result = pytest.main([script_path])
                 
                 if result == 0:
                     self.logger.info("Tests execution successful.")
@@ -243,3 +243,4 @@ def commit_changes(code):
     subprocess.run(["git", "add", "workspace"])
     subprocess.run(["git", "commit", "-m", "Automated code commit"])
     subprocess.run(["git", "push"])
+
