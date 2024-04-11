@@ -9,6 +9,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import requests
 from bs4 import BeautifulSoup
 import time
+import json
 
 class BrowserTools:
     def __init__(self):
@@ -27,21 +28,17 @@ class BrowserTools:
     def scrape_page(self, url, timeout=10):
         if url in self.cache:
             return self.cache[url]
-
         try:
             response = requests.get(url, timeout=timeout)
             soup = BeautifulSoup(response.text, "html.parser")
-
             title = soup.title.string if soup.title else ""
             paragraphs = [p.get_text() for p in soup.find_all("p")]
             content = " ".join(paragraphs)
-
             self.cache[url] = {
                 "url": url,
                 "title": title,
                 "content": content
             }
-
             return self.cache[url]
         except requests.exceptions.RequestException as e:
             print(f"Error scraping page: {url}")
@@ -86,6 +83,28 @@ class BrowserTools:
         if element:
             return element.text
         return ""
+
+    def execute_browser_command(self, command):
+        try:
+            command_type = command["type"]
+            if command_type == "navigate":
+                url = command["url"]
+                self.driver.get(url)
+            elif command_type == "click":
+                selector = command["selector"]
+                self.click_button(selector)
+            elif command_type == "form":
+                form_selector = command["form_selector"]
+                data = command["data"]
+                self.fill_form(form_selector, data)
+            elif command_type == "extract":
+                selector = command["selector"]
+                text = self.extract_text(selector)
+                return text
+            else:
+                print(f"Unknown command type: {command_type}")
+        except Exception as e:
+            print(f"Error executing browser command: {str(e)}")
 
     def close(self):
         self.driver.quit()

@@ -53,6 +53,24 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
         {
             "type": "function",
             "function": {
+                "name": "run_code",
+                "description": "Run the provided code",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The code to run",
+                        }
+                    },
+                    "required": ["code"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
                 "name": "search_google",
                 "description": "Search Google for relevant information",
                 "parameters": {
@@ -156,6 +174,489 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "extract_code",
+                "description": "Extract code from the provided text",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "description": "The text to extract code from",
+                        }
+                    },
+                    "required": ["text"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "generate_file_name",
+                "description": "Generate a suitable file name for the provided code",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The code to generate a file name for",
+                        }
+                    },
+                    "required": ["code"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "save_checkpoint",
+                "description": "Save a checkpoint with the provided data",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "checkpoint_data": {
+                            "type": "object",
+                            "description": "The data to save in the checkpoint",
+                        },
+                        "checkpoint_file": {
+                            "type": "string",
+                            "description": "The file path to save the checkpoint to",
+                        },
+                        "code": {
+                            "type": "string",
+                            "description": "The code to save in the checkpoint",
+                        }
+                    },
+                    "required": ["checkpoint_data", "checkpoint_file"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "load_checkpoint",
+                "description": "Load a checkpoint from the provided file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "checkpoint_file": {
+                            "type": "string",
+                            "description": "The file path to load the checkpoint from",
+                        }
+                    },
+                    "required": ["checkpoint_file"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "generate_summary",
+                "description": "Generate a summary of the provided response",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "response": {
+                            "type": "string",
+                            "description": "The response to summarize",
+                        },
+                        "agent_name": {
+                            "type": "string",
+                            "description": "The name of the agent that provided the response",
+                        }
+                    },
+                    "required": ["response", "agent_name"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "extract_task",
+                "description": "Extract the task from the provided response",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "response": {
+                            "type": "string",
+                            "description": "The response to extract the task from",
+                        },
+                        "agent_name": {
+                            "type": "string",
+                            "description": "The name of the agent that provided the response",
+                        }
+                    },
+                    "required": ["response", "agent_name"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "extract_research_topic",
+                "description": "Extract the research topic from the provided response",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "response": {
+                            "type": "string",
+                            "description": "The response to extract the research topic from",
+                        }
+                    },
+                    "required": ["response"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_current_date_and_time",
+                "description": "Get the current date and time",
+                "parameters": {},
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "save_file",
+                "description": "Save the provided content to a file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "The content to save to the file",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "The file path to save the content to",
+                        }
+                    },
+                    "required": ["content", "file_path"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read the content of the provided file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "The file path to read the content from",
+                        }
+                    },
+                    "required": ["file_path"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "list_files",
+                "description": "List the files in the workspace",
+                "parameters": {},
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "format_code",
+                "description": "Format the provided code",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The code to format",
+                        }
+                    },
+                    "required": ["code"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "run_command",
+                "description": "Run the provided command",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The command to run",
+                        }
+                    },
+                    "required": ["command"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "get_task_summary",
+                "description": "Generate a summary of the provided tasks",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tasks": {
+                            "type": "array",
+                            "description": "The tasks to generate a summary of",
+                        }
+                    },
+                    "required": ["tasks"],
+                },
+            },
+        },
+
+
+        {
+            "type": "function",
+            "function": {
+                "name": "filter_tasks_by_category",
+                "description": "Filter the provided tasks by category",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tasks": {
+                            "type": "array",
+                            "description": "The tasks to filter",
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "The category to filter by",
+                        }
+                    },
+                    "required": ["tasks", "category"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "filter_tasks_by_assignee",
+                "description": "Filter the provided tasks by assignee",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tasks": {
+                            "type": "array",
+                            "description": "The tasks to filter",
+                        },
+                        "assignee": {
+                            "type": "string",
+                            "description": "The assignee to filter by",
+                        }
+                    },
+                    "required": ["tasks", "assignee"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "filter_tasks_by_status",
+                "description": "Filter the provided tasks by status",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tasks": {
+                            "type": "array",
+                            "description": "The tasks to filter",
+                        },
+                        "status": {
+                            "type": "string",
+                            "description": "The status to filter by",
+                        }
+                    },
+                    "required": ["tasks", "status"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "generate_summary",
+                "description": "Generate a summary of the provided response",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "response": {
+                            "type": "string",
+                            "description": "The response to summarize",
+                        },
+                        "agent_name": {
+                            "type": "string",
+                            "description": "The name of the agent that provided the response",
+                        }
+                    },
+                    "required": ["response", "agent_name"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "extract_task",
+                "description": "Extract the task from the provided response",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "response": {
+                            "type": "string",
+                            "description": "The response to extract the task from",
+                        },
+                        "agent_name": {
+                            "type": "string",
+                            "description": "The name of the agent that provided the response",
+                        }
+                    },
+                    "required": ["response", "agent_name"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "extract_research_topic",
+                "description": "Extract the research topic from the provided response",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "response": {
+                            "type": "string",
+                            "description": "The response to extract the research topic from",
+                        }
+                    },
+                    "required": ["response"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "get_current_date_and_time",
+                "description": "Get the current date and time",
+                "parameters": {},
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "save_file",
+                "description": "Save the provided content to a file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "The content to save to the file",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "The file path to save the content to",
+                        }
+                    },
+                    "required": ["content", "file_path"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read the content of the provided file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "The file path to read the content from",
+                        }
+                    },
+                    "required": ["file_path"],
+                },
+            },
+        },
+
+        {
+            "type": "function",
+            "function": {
+                "name": "list_files",
+                "description": "List the files in the workspace",
+                "parameters": {},
+            },
+        },
+
+        {
+
+            "type": "function",
+            "function": {
+                "name": "format_code",
+                "description": "Format the provided code",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The code to format",
+                        }
+                    },
+                    "required": ["code"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "execute_browser_command",
+                "description": "Execute a browser command",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "object",
+                            "description": "The browser command to execute",
+                        }
+                    },
+                    "required": ["command"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "run_command",
+                "description": "Run the provided command",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The command to run",
+                        }
+                    },
+                    "required": ["command"],
+                },
+            },
+        },
+
     ]
 
     chat = ChatGroq(temperature=temperature, model_name=model)
@@ -166,13 +667,15 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
     retry_count = 0
     while retry_count < max_retries:
         try:
+            print("\n" + "=" * 80)
             print(f"\n🚀 Iteration {retry_count + 1} - Engaging {agent_name if agent_name else 'AI Agent'} 🚀")
-            print(f"🧠 System Message: {system_message}")
-            print(f"👤 User Input: {user_input}")
+            print("=" * 80 + "\n")
+            #print(f"🧠 System Message: {system_message}")
+            #print(f"👤 User Input: {user_input}")
 
             chat_completion = chain.invoke({"text": user_input})
             response_message = chat_completion.content
-
+            
             print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Response:")
             print(f"{response_message}\n")
 
@@ -190,8 +693,30 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                     "optimize_code": code_execution_manager.optimize_code,
                     "extract_tasks": task_manager.extract_tasks,
                     "update_task_status": task_manager.update_task_status,
+                    "run_code": code_execution_manager.execute_command,
+                    "extract_code": extract_code,
+                    "generate_file_name": generate_file_name,
+                    "save_checkpoint": save_checkpoint,
+                    "load_checkpoint": load_checkpoint,
+                    "generate_summary": generate_summary,
+                    "extract_task": extract_task,
+                    "extract_research_topic": extract_research_topic,
+                    "get_current_date_and_time": get_current_date_and_time,
+                    "save_file": code_execution_manager.save_file,
+                    "read_file": code_execution_manager.read_file,
+                    "list_files": code_execution_manager.list_files_in_workspace,
+                    "format_code": code_execution_manager.format_code,
+                    "run_command": code_execution_manager.execute_command,
+                    "get_task_summary": task_manager.generate_task_summary,
+                    "filter_tasks_by_category": task_manager.filter_tasks_by_category,
+                    "filter_tasks_by_assignee": task_manager.filter_tasks_by_assignee,
+                    "filter_tasks_by_status": task_manager.filter_tasks_by_status,
+                    "execute_browser_command": browser_tools.execute_browser_command,
+
+
                 }
                 messages.append(AIMessage(content=response_message))
+                sleep(10)
                 
                 for tool_call in tool_calls:
                     function_name = tool_call["function"]["name"]
@@ -279,6 +804,7 @@ def save_checkpoint(checkpoint_data, checkpoint_file, code):
         if code:
             file_name = generate_file_name(code)
             code_file_path = os.path.join("workspace", f"{file_name}.py")
+
             with open(code_file_path, 'w') as code_file:
                 code_file.write(code)
     except Exception as e:
