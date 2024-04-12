@@ -19,41 +19,86 @@ class CodeExecutionManager:
         os.makedirs(self.workspace_folder, exist_ok=True)
 
     def save_file(self, filepath, content):
-        filepath = os.path.join(self.workspace_folder, filepath)
+        """
+        Save a file with the given content in the workspace folder.
+
+        Args:
+            filepath (str): The path of the file relative to the workspace folder.
+            content (str): The content to be written to the file.
+
+        Returns:
+            dict: A dictionary containing the status and file path.
+                - status (str): "success" if the file was saved successfully, "error" otherwise.
+                - file_path (str): The full path of the saved file.
+        """
+        file_path = os.path.join(self.workspace_folder, filepath)
         try:
-            with open(filepath, 'w', encoding='utf-8') as file:
+            with open(file_path, 'w', encoding='utf-8') as file:
                 file.write(content)
-            self.logger.info(f"File '{filepath}' saved successfully.")
-            return True
+            self.logger.info(f"File '{file_path}' saved successfully.")
+            return {"status": "success", "file_path": file_path}
         except Exception as e:
-            self.logger.exception(f"Error saving file '{filepath}': {str(e)}")
-            return False
+            self.logger.exception(f"Error saving file '{file_path}': {str(e)}")
+            return {"status": "error", "error_message": str(e)}
 
     def read_file(self, filepath):
-        filepath = os.path.join(self.workspace_folder, filepath)
+        """
+        Read the content of a file from the workspace folder.
+
+        Args:
+            filepath (str): The path of the file relative to the workspace folder.
+
+        Returns:
+            dict: A dictionary containing the status, file content, and file path.
+                - status (str): "success" if the file was read successfully, "error" otherwise.
+                - content (str): The content of the file.
+                - file_path (str): The full path of the read file.
+        """
+        file_path = os.path.join(self.workspace_folder, filepath)
         try:
-            with open(filepath, 'r', encoding='utf-8') as file:
+            with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
-            self.logger.info(f"File '{filepath}' read successfully.")
-            return content
+            self.logger.info(f"File '{file_path}' read successfully.")
+            return {"status": "success", "content": content, "file_path": file_path}
         except FileNotFoundError:
-            self.logger.error(f"File '{filepath}' not found.")
-            return None
+            self.logger.error(f"File '{file_path}' not found.")
+            return {"status": "error", "error_message": f"File '{file_path}' not found."}
         except Exception as e:
-            self.logger.exception(f"Error reading file '{filepath}': {str(e)}")
-            return None
+            self.logger.exception(f"Error reading file '{file_path}': {str(e)}")
+            return {"status": "error", "error_message": str(e)}
+
     def list_files_in_workspace(self):
+        """
+        List all the files in the workspace folder.
+
+        Returns:
+            dict: A dictionary containing the status and list of files.
+                - status (str): "success" if the files were listed successfully, "error" otherwise.
+                - files (list): A list of file names in the workspace folder.
+        """
         try:
             files = os.listdir(self.workspace_folder)
             self.logger.info("List of files in workspace retrieved successfully.")
-            return files
+            return {"status": "success", "files": files}
         except Exception as e:
             self.logger.exception(f"Error listing files in workspace: {str(e)}")
-            return None
+            return {"status": "error", "error_message": str(e)}
 
     def test_code(self, code):
+        """
+        Run tests on the provided code using pytest.
+
+        Args:
+            code (str): The code to be tested.
+
+        Returns:
+            dict: A dictionary containing the status, test output, and error message (if any).
+                - status (str): "success" if the tests passed, "failure" if the tests failed, "error" if an error occurred.
+                - output (str): The output of the test execution.
+                - error_message (str): The error message if an error occurred during test execution.
+        """
         if not code:
-            return None, None
+            return {"status": "error", "error_message": "No code provided."}
 
         with tempfile.TemporaryDirectory(dir=self.workspace_folder) as temp_dir:
             script_path = os.path.join(temp_dir, 'temp_script.py')
@@ -62,31 +107,54 @@ class CodeExecutionManager:
 
             try:
                 # Use pytest to run tests and capture output
-                result = pytest.main([script_path])
+                result = pytest.main([script_path, "--verbose"])
                 
                 if result == 0:
                     self.logger.info("Tests execution successful.")
-                    return "All tests passed.", None
+                    return {"status": "success", "output": "All tests passed."}
                 else:
                     self.logger.error("Tests execution failed.")
-                    return None, "Some tests failed."
+                    return {"status": "failure", "output": "Some tests failed."}
             except subprocess.TimeoutExpired:
                 self.logger.error("Tests execution timed out after 30 seconds.")
-                return None, "Execution timed out after 30 seconds"
+                return {"status": "error", "error_message": "Execution timed out after 30 seconds."}
             except Exception as e:
                 self.logger.exception(f"Tests execution error: {str(e)}")
-                return None, f"Error: {str(e)}\nTraceback: {traceback.format_exc()}"
+                return {"status": "error", "error_message": f"Error: {str(e)}\nTraceback: {traceback.format_exc()}"}
 
     def execute_command(self, command):
+        """
+        Execute a shell command.
+
+        Args:
+            command (str): The command to be executed.
+
+        Returns:
+            dict: A dictionary containing the status, stdout, and stderr.
+                - status (str): "success" if the command executed successfully, "error" otherwise.
+                - stdout (str): The standard output of the command execution.
+                - stderr (str): The standard error of the command execution.
+        """
         try:
             result = subprocess.run(command, capture_output=True, text=True, shell=True)
             self.logger.info(f"Command executed: {command}")
-            return result.stdout, result.stderr
+            return {"status": "success", "stdout": result.stdout, "stderr": result.stderr}
         except Exception as e:
             self.logger.exception(f"Error executing command: {str(e)}")
-            return None, str(e)
+            return {"status": "error", "error_message": str(e)}
 
     def optimize_code(self, code):
+        """
+        Optimize the provided code using Pylint and provide optimization suggestions.
+
+        Args:
+            code (str): The code to be optimized.
+
+        Returns:
+            dict: A dictionary containing the status and optimization suggestions.
+                - status (str): "success" if the optimization completed successfully, "error" otherwise.
+                - suggestions (str): The optimization suggestions provided by Pylint.
+        """
         try:
             # Save the code to a temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as tmp:
@@ -120,20 +188,31 @@ class CodeExecutionManager:
             if suggestions:
                 optimization_suggestions = "\n".join(suggestions)
                 self.logger.info(f"Optimization suggestions:\n{optimization_suggestions}")
-                return optimization_suggestions
+                return {"status": "success", "suggestions": optimization_suggestions}
             else:
                 self.logger.info("No optimization suggestions found.")
-                return "No optimization suggestions found."
+                return {"status": "success", "suggestions": "No optimization suggestions found."}
 
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Pylint analysis failed: {e.output}")
-            return None
+            return {"status": "error", "error_message": str(e)}
 
         except Exception as e:
             self.logger.exception(f"Error during optimization: {str(e)}")
-            return None
+            return {"status": "error", "error_message": str(e)}
 
     def format_code(self, code):
+        """
+        Format the provided code using Black code formatter.
+
+        Args:
+            code (str): The code to be formatted.
+
+        Returns:
+            dict: A dictionary containing the status and formatted code.
+                - status (str): "success" if the formatting completed successfully, "error" otherwise.
+                - formatted_code (str): The formatted code.
+        """
         try:
             # Save the code to a temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as tmp:
@@ -151,96 +230,88 @@ class CodeExecutionManager:
             os.remove(tmp_file_path)
 
             self.logger.info("Code formatting completed.")
-            return formatted_code
+            return {"status": "success", "formatted_code": formatted_code}
 
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Code formatting failed: {e.output}")
-            return None
+            return {"status": "error", "error_message": str(e)}
 
         except Exception as e:
             self.logger.exception(f"Error during code formatting: {str(e)}")
-            return None
+            return {"status": "error", "error_message": str(e)}
 
+    def generate_documentation(self, code):
+        """
+        Generate documentation for the provided code using docstrings.
 
-def format_error_message(error):
-    return f"Error: {str(error)}\nTraceback: {traceback.format_exc()}"
+        Args:
+            code (str): The code to generate documentation for.
 
-def run_tests(code):
-    code_execution_manager = CodeExecutionManager()
-    test_code_output, test_code_error = code_execution_manager.test_code(code)
-    if test_code_output:
-        print(f"\n[TEST CODE OUTPUT]\n{test_code_output}")
-    if test_code_error:
-        print(f"\n[TEST CODE ERROR]\n{test_code_error}")
+        Returns:
+            dict: A dictionary containing the status and generated documentation.
+                - status (str): "success" if the documentation generation completed successfully, "error" otherwise.
+                - documentation (str): The generated documentation.
+        """
+        try:
+            module = ast.parse(code)
+            docstrings = []
 
-def monitor_performance(code):
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, dir="workspace") as temp_file:
-        temp_file.write(code)
-        temp_file_path = temp_file.name
+            for node in ast.walk(module):
+                if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.Module)):
+                    docstring = ast.get_docstring(node)
+                    if docstring:
+                        docstrings.append(f"{node.name}:\n{docstring}")
 
-    profiler = cProfile.Profile()
-    profiler.enable()
+            documentation = "\n".join(docstrings)
+            self.logger.info(f"Documentation generated:\n{documentation}")
+            return {"status": "success", "documentation": documentation}
 
-    try:
-        subprocess.run(['python', temp_file_path], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing code: {e}")
-    finally:
-        profiler.disable()
-        os.unlink(temp_file_path)
+        except SyntaxError as e:
+            self.logger.error(f"SyntaxError: {e}")
+            return {"status": "error", "error_message": str(e)}
 
-    stream = io.StringIO()
-    stats = pstats.Stats(profiler, stream=stream).sort_stats('cumulative')
-    stats.print_stats()
+        except Exception as e:
+            self.logger.exception(f"Error during documentation generation: {str(e)}")
+            return {"status": "error", "error_message": str(e)}
 
-    performance_data = stream.getvalue()
-    print(f"\n[PERFORMANCE DATA]\n{performance_data}")
+    def commit_changes(self, code):
+        """
+        Commit code changes to the version control system.
 
-    return performance_data
+        Args:
+            code (str): The code changes to be committed.
 
-def optimize_code(code):
-    code_execution_manager = CodeExecutionManager()
-    optimization_suggestions = code_execution_manager.optimize_code(code)
-    if optimization_suggestions:
-        print(f"\n[OPTIMIZATION SUGGESTIONS]\n{optimization_suggestions}")
-    return optimization_suggestions
+        Returns:
+            dict: A dictionary containing the status and commit message.
+                - status (str): "success" if the commit completed successfully, "error" otherwise.
+                - message (str): The commit message.
+        """
+        try:
+            # Save the code changes to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as tmp:
+                tmp.write(code.encode('utf-8'))
+                tmp_file_path = tmp.name
 
-def format_code(code):
-    code_execution_manager = CodeExecutionManager()
-    formatted_code = code_execution_manager.format_code(code)
-    if formatted_code:
-        print(f"\n[FORMATTED CODE]\n{formatted_code}")
-    return formatted_code
+            # Stage the changes
+            subprocess.run(["git", "add", tmp_file_path], check=True)
 
-def pass_code_to_alex(code, alex_memory):
-    alex_memory.append({"role": "system", "content": f"Code from Mike and Annie: {code}"})
+            # Commit the changes with a message
+            commit_message = "Automated code commit"
+            subprocess.run(["git", "commit", "-m", commit_message], check=True)
 
-def send_status_update(mike_memory, annie_memory, alex_memory, project_status):
-    mike_memory.append({"role": "system", "content": f"Project Status Update: {project_status}"})
-    annie_memory.append({"role": "system", "content": f"Project Status Update: {project_status}"})
-    alex_memory.append({"role": "system", "content": f"Project Status Update: {project_status}"})
+            # Push the changes to the remote repository
+            subprocess.run(["git", "push"], check=True)
 
-def generate_documentation(code):
-    try:
-        module = ast.parse(code)
-        docstrings = []
+            # Cleanup temporary file
+            os.remove(tmp_file_path)
 
-        for node in ast.walk(module):
-            if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.Module)):
-                docstring = ast.get_docstring(node)
-                if docstring:
-                    docstrings.append(f"{node.name}:\n{docstring}")
+            self.logger.info("Code changes committed successfully.")
+            return {"status": "success", "message": commit_message}
 
-        documentation = "\n".join(docstrings)
-        print(f"\n[GENERATED DOCUMENTATION]\n{documentation}")
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Commit failed: {e.output}")
+            return {"status": "error", "error_message": str(e)}
 
-        return documentation
-    except SyntaxError as e:
-        print(f"SyntaxError: {e}")
-        return None
-
-def commit_changes(code):
-    subprocess.run(["git", "add", "workspace"])
-    subprocess.run(["git", "commit", "-m", "Automated code commit"])
-    subprocess.run(["git", "push"])
-
+        except Exception as e:
+            self.logger.exception(f"Error during commit: {str(e)}")
+            return {"status": "error", "error_message": str(e)}

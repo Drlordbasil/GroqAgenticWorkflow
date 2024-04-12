@@ -1,73 +1,55 @@
 import json
-from dotenv import load_dotenv
-from openai import OpenAI
 import datetime
 import os
-import logging
 import re
 import pickle
 import zlib
 from time import sleep
 from browser_tools import BrowserTools
 from code_execution_manager import CodeExecutionManager
-from crypto_wallet import CryptoWallet
-from task_manager import TaskManager
 import spacy
 from langchain.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
-load_dotenv()
-
-api_keys = {
-    "groq": os.getenv("GROQ_API_KEY"),
-    "openai": os.getenv("OPENAI_API_KEY"),
-}
-client = {
-    "groq_client": OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_keys["groq"]),
-    "openai_client": OpenAI(base_url="https://api.openai.com/v1", api_key=api_keys["openai"]),
-}
-
-logging.basicConfig(filename='agentic_workflow.log', level=logging.INFO)
 
 def get_current_date_and_time():
+    """
+    Get the current date and time.
+
+    Returns:
+        str: The current date and time in the format 'YYYY-MM-DD HH:MM:SS.ffffff'.
+    """
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d %H:%M:%S.%f')
 
+def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=60, agent_name=None):
+    """
+    Engage in a conversation with an AI agent using the provided tools and memory.
 
+    Args:
+        user_input (str): The user's input message.
+        system_message (str): The system message to guide the agent's behavior.
+        memory (list): The agent's memory, containing relevant context and information.
+        model (str): The name of the language model to use for generating responses.
+        temperature (float): The temperature value for controlling the randomness of the generated responses.
+        max_retries (int, optional): The maximum number of retries in case of errors. Defaults to 5.
+        retry_delay (int, optional): The delay in seconds between retries. Defaults to 60.
+        agent_name (str, optional): The name of the agent. Defaults to None.
 
-
-def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=10, agent_name=None):
+    Returns:
+        str: The agent's response.
+    """
     browser_tools = BrowserTools()
     code_execution_manager = CodeExecutionManager()
-    
     nlp = spacy.load("en_core_web_sm")
-    task_manager = TaskManager(nlp)
 
     messages = [
         SystemMessage(content=system_message),
-        *[AIMessage(content=msg["content"]) if msg["role"] == "assistant" else HumanMessage(content=msg["content"]) for msg in memory[-5:]],
+        *[AIMessage(content=msg["content"]) if msg["role"] == "assistant" else HumanMessage(content=msg["content"]) for msg in memory[-3:]],
         HumanMessage(content=user_input)
     ]
 
     tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "run_code",
-                "description": "Run the provided code",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "code": {
-                            "type": "string",
-                            "description": "The code to run",
-                        }
-                    },
-                    "required": ["code"],
-                },
-            },
-        },
-
         {
             "type": "function",
             "function": {
@@ -122,196 +104,6 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
         {
             "type": "function",
             "function": {
-                "name": "optimize_code",
-                "description": "Optimize the provided code",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "code": {
-                            "type": "string",
-                            "description": "The code to optimize",
-                        }
-                    },
-                    "required": ["code"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "extract_tasks",
-                "description": "Extract tasks from the provided text",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "text": {
-                            "type": "string",
-                            "description": "The text to extract tasks from",
-                        }
-                    },
-                    "required": ["text"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "update_task_status",
-                "description": "Update the status of a task",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "task": {
-                            "type": "object",
-                            "description": "The task to update",
-                        },
-                        "status": {
-                            "type": "string",
-                            "description": "The new status of the task",
-                        }
-                    },
-                    "required": ["task", "status"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "extract_code",
-                "description": "Extract code from the provided text",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "text": {
-                            "type": "string",
-                            "description": "The text to extract code from",
-                        }
-                    },
-                    "required": ["text"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "generate_file_name",
-                "description": "Generate a suitable file name for the provided code",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "code": {
-                            "type": "string",
-                            "description": "The code to generate a file name for",
-                        }
-                    },
-                    "required": ["code"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "save_checkpoint",
-                "description": "Save a checkpoint with the provided data",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "checkpoint_data": {
-                            "type": "object",
-                            "description": "The data to save in the checkpoint",
-                        },
-                        "checkpoint_file": {
-                            "type": "string",
-                            "description": "The file path to save the checkpoint to",
-                        },
-                        "code": {
-                            "type": "string",
-                            "description": "The code to save in the checkpoint",
-                        }
-                    },
-                    "required": ["checkpoint_data", "checkpoint_file"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "load_checkpoint",
-                "description": "Load a checkpoint from the provided file",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "checkpoint_file": {
-                            "type": "string",
-                            "description": "The file path to load the checkpoint from",
-                        }
-                    },
-                    "required": ["checkpoint_file"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "generate_summary",
-                "description": "Generate a summary of the provided response",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "response": {
-                            "type": "string",
-                            "description": "The response to summarize",
-                        },
-                        "agent_name": {
-                            "type": "string",
-                            "description": "The name of the agent that provided the response",
-                        }
-                    },
-                    "required": ["response", "agent_name"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "extract_task",
-                "description": "Extract the task from the provided response",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "response": {
-                            "type": "string",
-                            "description": "The response to extract the task from",
-                        },
-                        "agent_name": {
-                            "type": "string",
-                            "description": "The name of the agent that provided the response",
-                        }
-                    },
-                    "required": ["response", "agent_name"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "extract_research_topic",
-                "description": "Extract the research topic from the provided response",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "response": {
-                            "type": "string",
-                            "description": "The response to extract the research topic from",
-                        }
-                    },
-                    "required": ["response"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
                 "name": "get_current_date_and_time",
                 "description": "Get the current date and time",
                 "parameters": {},
@@ -363,7 +155,6 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                 "parameters": {},
             },
         },
-
         {
             "type": "function",
             "function": {
@@ -381,241 +172,17 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                 },
             },
         },
-
         {
             "type": "function",
             "function": {
-                "name": "run_command",
-                "description": "Run the provided command",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "command": {
-                            "type": "string",
-                            "description": "The command to run",
-                        }
-                    },
-                    "required": ["command"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "get_task_summary",
-                "description": "Generate a summary of the provided tasks",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "tasks": {
-                            "type": "array",
-                            "description": "The tasks to generate a summary of",
-                        }
-                    },
-                    "required": ["tasks"],
-                },
-            },
-        },
-
-
-        {
-            "type": "function",
-            "function": {
-                "name": "filter_tasks_by_category",
-                "description": "Filter the provided tasks by category",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "tasks": {
-                            "type": "array",
-                            "description": "The tasks to filter",
-                        },
-                        "category": {
-                            "type": "string",
-                            "description": "The category to filter by",
-                        }
-                    },
-                    "required": ["tasks", "category"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "filter_tasks_by_assignee",
-                "description": "Filter the provided tasks by assignee",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "tasks": {
-                            "type": "array",
-                            "description": "The tasks to filter",
-                        },
-                        "assignee": {
-                            "type": "string",
-                            "description": "The assignee to filter by",
-                        }
-                    },
-                    "required": ["tasks", "assignee"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "filter_tasks_by_status",
-                "description": "Filter the provided tasks by status",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "tasks": {
-                            "type": "array",
-                            "description": "The tasks to filter",
-                        },
-                        "status": {
-                            "type": "string",
-                            "description": "The status to filter by",
-                        }
-                    },
-                    "required": ["tasks", "status"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "generate_summary",
-                "description": "Generate a summary of the provided response",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "response": {
-                            "type": "string",
-                            "description": "The response to summarize",
-                        },
-                        "agent_name": {
-                            "type": "string",
-                            "description": "The name of the agent that provided the response",
-                        }
-                    },
-                    "required": ["response", "agent_name"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "extract_task",
-                "description": "Extract the task from the provided response",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "response": {
-                            "type": "string",
-                            "description": "The response to extract the task from",
-                        },
-                        "agent_name": {
-                            "type": "string",
-                            "description": "The name of the agent that provided the response",
-                        }
-                    },
-                    "required": ["response", "agent_name"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "extract_research_topic",
-                "description": "Extract the research topic from the provided response",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "response": {
-                            "type": "string",
-                            "description": "The response to extract the research topic from",
-                        }
-                    },
-                    "required": ["response"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "get_current_date_and_time",
-                "description": "Get the current date and time",
-                "parameters": {},
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "save_file",
-                "description": "Save the provided content to a file",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "content": {
-                            "type": "string",
-                            "description": "The content to save to the file",
-                        },
-                        "file_path": {
-                            "type": "string",
-                            "description": "The file path to save the content to",
-                        }
-                    },
-                    "required": ["content", "file_path"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "read_file",
-                "description": "Read the content of the provided file",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "The file path to read the content from",
-                        }
-                    },
-                    "required": ["file_path"],
-                },
-            },
-        },
-
-        {
-            "type": "function",
-            "function": {
-                "name": "list_files",
-                "description": "List the files in the workspace",
-                "parameters": {},
-            },
-        },
-
-        {
-
-            "type": "function",
-            "function": {
-                "name": "format_code",
-                "description": "Format the provided code",
+                "name": "generate_documentation",
+                "description": "Generate documentation for the provided code",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "code": {
                             "type": "string",
-                            "description": "The code to format",
+                            "description": "The code to generate documentation for",
                         }
                     },
                     "required": ["code"],
@@ -625,134 +192,97 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
         {
             "type": "function",
             "function": {
-                "name": "execute_browser_command",
-                "description": "Execute a browser command",
+                "name": "commit_changes",
+                "description": "Commit changes to the repository",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "command": {
-                            "type": "object",
-                            "description": "The browser command to execute",
-                        }
-                    },
-                    "required": ["command"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "run_command",
-                "description": "Run the provided command",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "command": {
+                        "code": {
                             "type": "string",
-                            "description": "The command to run",
+                            "description": "The code changes to commit",
                         }
                     },
-                    "required": ["command"],
+                    "required": ["code"],
                 },
             },
         },
-
     ]
 
     chat = ChatGroq(temperature=temperature, model_name=model)
     prompt = ChatPromptTemplate.from_messages(messages)
-
     chain = prompt | chat
 
     retry_count = 0
     while retry_count < max_retries:
         try:
-            print("\n" + "=" * 80)
-            print(f"\n🚀 Iteration {retry_count + 1} - Engaging {agent_name if agent_name else 'AI Agent'} 🚀")
-            print("=" * 80 + "\n")
-            #print(f"🧠 System Message: {system_message}")
-            #print(f"👤 User Input: {user_input}")
+            print(f"\n{'=' * 80}\n🚀 Iteration {retry_count + 1} - Engaging {agent_name if agent_name else 'AI Agent'} 🚀\n{'=' * 80}\n")
 
             chat_completion = chain.invoke({"text": user_input})
             response_message = chat_completion.content
             
-            print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Response:")
-            print(f"{response_message}\n")
+            print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Response:\n{response_message}\n")
 
             tool_calls = []
             try:
                 tool_calls = json.loads(response_message).get("tool_calls", [])
             except json.JSONDecodeError:
-                pass
+                print("Warning: Invalid JSON format in the agent's response. Skipping tool execution.")
 
             if tool_calls:
                 available_functions = {
                     "search_google": browser_tools.search_google,
                     "scrape_page": browser_tools.scrape_page,
                     "test_code": code_execution_manager.test_code,
-                    "optimize_code": code_execution_manager.optimize_code,
-                    "extract_tasks": task_manager.extract_tasks,
-                    "update_task_status": task_manager.update_task_status,
-                    "run_code": code_execution_manager.execute_command,
                     "extract_code": extract_code,
-                    "generate_file_name": generate_file_name,
-                    "save_checkpoint": save_checkpoint,
-                    "load_checkpoint": load_checkpoint,
-                    "generate_summary": generate_summary,
-                    "extract_task": extract_task,
-                    "extract_research_topic": extract_research_topic,
                     "get_current_date_and_time": get_current_date_and_time,
                     "save_file": code_execution_manager.save_file,
                     "read_file": code_execution_manager.read_file,
                     "list_files": code_execution_manager.list_files_in_workspace,
                     "format_code": code_execution_manager.format_code,
-                    "run_command": code_execution_manager.execute_command,
-                    "get_task_summary": task_manager.generate_task_summary,
-                    "filter_tasks_by_category": task_manager.filter_tasks_by_category,
-                    "filter_tasks_by_assignee": task_manager.filter_tasks_by_assignee,
-                    "filter_tasks_by_status": task_manager.filter_tasks_by_status,
-                    "execute_browser_command": browser_tools.execute_browser_command,
-
-
+                    "generate_documentation": code_execution_manager.generate_documentation,
+                    "commit_changes": code_execution_manager.commit_changes,
                 }
+
                 messages.append(AIMessage(content=response_message))
+                messages.append(SystemMessage(content="Tools are available for use. You can use them to perform various tasks. Please wait while I execute the tools."))
                 sleep(10)
                 
                 for tool_call in tool_calls:
                     function_name = tool_call["function"]["name"]
-                    function_to_call = available_functions[function_name]
                     function_args = tool_call["function"]["arguments"]
                     
                     print(f"🛠️ Executing tool: {function_name}")
                     print(f"📥 Tool arguments: {function_args}")
 
-                    function_response = function_to_call(**function_args)
+                    if function_name in available_functions:
+                        function_to_call = available_functions[function_name]
+                        function_response = function_to_call(**function_args)
+                        print(f"📤 Tool response: {function_response}")
 
-                    print(f"📤 Tool response: {function_response}")
-
-                    messages.append(
-                        {
-                            "tool_call_id": tool_call["id"],
-                            "role": "tool",
-                            "name": function_name,
-                            "content": function_response,
-                        }
-                    )
+                        messages.append(
+                            {
+                                "tool_call_id": tool_call["id"],
+                                "role": "tool",
+                                "name": function_name,
+                                "content": function_response,
+                            }
+                        )
+                    else:
+                        print(f"Unknown tool: {function_name}")
                 
                 second_response = chain.invoke({"text": user_input})
                 response_content = second_response.content
-
-                print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Updated Response:")
-                print(f"{response_content}\n")
+                sleep(10)
+                print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Updated Response:\n{response_content}\n")
 
             else:
                 response_content = response_message
-            
-            truncated_response = response_content[:1000]
-            memory.append({"role": "assistant", "content": truncated_response})
-            memory.append({"role": "user", "content": user_input})
 
-            sleep(10)
+            memory.append({"role": "assistant", "content": f"Available tools: {tools}"})
+            memory.append({"role": "assistant", "content": response_content})
+            memory.append({"role": "user", "content": user_input})
+            
+            sleep(20)
             return response_content
 
         except Exception as e:
@@ -764,54 +294,76 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             else:
                 print(f"❌ Max retries exceeded. Raising the exception.")
                 raise e
+
 def extract_code(text):
-    try:
-        code_block_pattern = re.compile(r'```python(.*?)```', re.DOTALL)
-        code_blocks = code_block_pattern.findall(text)
-        return code_blocks[0].strip() if code_blocks else None
-    except Exception as e:
-        #logging.error(f"Error extracting code: {format_error_message(e)}")
-        return None
-def generate_file_name(code):
-    try:
+    """
+    Extract code blocks from the provided text.
 
-        messages = [
-            {"role": "system", "content": f" you only respond with an appropriate file name for the code you are given. Dont provide any other information."},
-            
-            {"role": "user", "content": f" Please provide a suitable file name for the following code:\n\n{code} \n\nFile Name:"}
-        ]        
-        
-        file_name = client["groq_client"].chat.completions.create(
-                model="mixtral-8x7b-32768",
-                messages=messages,
-                max_tokens=20,
-                temperature=0,
-            )
+    Args:
+        text (str): The text to extract code blocks from.
 
-        
-        file_name = file_name.choices[0].message.content
-        sleep(10)
-        return file_name
-    except Exception as e:
-        #logging.error(f" {format_error_message(e)}")
-        return None
-def save_checkpoint(checkpoint_data, checkpoint_file, code):
-    try:
-        compressed_data = compress_data(checkpoint_data)
-        with open(checkpoint_file, 'wb') as f:
-            pickle.dump(compressed_data, f)
+    Returns:
+        str: The extracted code block, or None if no code block is found.
+    """
+    code_block_pattern = re.compile(r'```python(.*?)```', re.DOTALL)
+    code_blocks = code_block_pattern.findall(text)
+    return code_blocks[0].strip() if code_blocks else None
+def save_checkpoint(checkpoint_data, checkpoint_file, code, system_messages, memory, agent_name="annie"):
+    """
+    Save the checkpoint data and code to files.
 
-        if code:
-            file_name = generate_file_name(code)
-            code_file_path = os.path.join("workspace", f"{file_name}.py")
+    Args:
+        checkpoint_data (list): The checkpoint data to be saved.
+        checkpoint_file (str): The path to the checkpoint file.
+        code (str): The code to be saved.
+        system_messages (dict): The dictionary containing system messages for each agent.
+        memory (dict): The dictionary containing the memory for each agent.
+        agent_name (str, optional): The name of the agent responsible for naming the code file. Defaults to "annie".
 
-            with open(code_file_path, 'w') as code_file:
-                code_file.write(code)
-    except Exception as e:
-        #logging.error(f"Error saving checkpoint: {format_error_message(e)}")
-        pass
+    Returns:
+        None
+    """
+    compressed_data = compress_data(checkpoint_data)
+    with open(checkpoint_file, 'wb') as f:
+        pickle.dump(compressed_data, f)
+
+    if code:
+        # Engage the agent to provide a relevant file name
+        file_name_response = agent_chat(f"Please provide a relevant file name for the following code snippet:\n\n{code} \n\n only respond with a singular file name valid for your file. RESPONSE FORMAT ALWAYS(change the filename depending): main.py", system_messages[agent_name], memory[agent_name], "mixtral-8x7b-32768", 0.7, agent_name=agent_name.capitalize())
+
+        # Extract the file name using regular expressions
+        file_name_pattern = r'(\w+\.(?:py|txt|json|csv|md))'
+        file_name_match = re.search(file_name_pattern, file_name_response, re.IGNORECASE)
+
+        if file_name_match:
+            file_name = file_name_match.group(1)
+        else:
+            # If no valid file name is found, use a default name
+            file_name = "generated_code.py"
+
+        # Sanitize the file name to remove any invalid characters and replace them with underscores
+        file_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', file_name)
+
+        # Remove any leading or trailing periods and replace multiple consecutive underscores with a single underscore
+        file_name = re.sub(r'^\.+|\.+$', '', file_name)
+        file_name = re.sub(r'_+', '_', file_name)
+
+        code_file_path = os.path.join("workspace", file_name)
+        with open(code_file_path, 'w') as code_file:
+            code_file.write(code)
 
 def load_checkpoint(checkpoint_file):
+    """
+    Load the checkpoint data and code from files.
+
+    Args:
+        checkpoint_file (str): The path to the checkpoint file.
+
+    Returns:
+        tuple: A tuple containing the checkpoint data and code.
+            - checkpoint_data (list): The loaded checkpoint data.
+            - code (str): The loaded code.
+    """
     try:
         with open(checkpoint_file, 'rb') as f:
             compressed_data = pickle.load(f)
@@ -820,19 +372,43 @@ def load_checkpoint(checkpoint_file):
             return checkpoint_data, code
     except FileNotFoundError:
         return None, ""
-    except Exception as e:
-        #logging.error(f"Error loading checkpoint: {format_error_message(e)}")
-        return None, ""
 
 def compress_data(data):
-    compressed_data = zlib.compress(pickle.dumps(data))
-    return compressed_data
+    """
+    Compress the provided data using zlib compression.
+
+    Args:
+        data (object): The data to be compressed.
+
+    Returns:
+        bytes: The compressed data.
+    """
+    return zlib.compress(pickle.dumps(data))
 
 def decompress_data(compressed_data):
-    decompressed_data = pickle.loads(zlib.decompress(compressed_data))
-    return decompressed_data
+    """
+    Decompress the provided compressed data using zlib decompression.
+
+    Args:
+        compressed_data (bytes): The compressed data to be decompressed.
+
+    Returns:
+        object: The decompressed data.
+    """
+    return pickle.loads(zlib.decompress(compressed_data))
 
 def print_block(text, width=80, character='='):
+    """
+    Print the provided text in a block format with a specified width and character.
+
+    Args:
+        text (str): The text to be printed in the block.
+        width (int, optional): The width of the block. Defaults to 80.
+        character (str, optional): The character to use for the block border. Defaults to '='.
+
+    Returns:
+        None
+    """
     lines = text.split('\n')
     max_line_length = max(len(line) for line in lines)
     padding = (width - max_line_length) // 2
@@ -841,39 +417,3 @@ def print_block(text, width=80, character='='):
     for line in lines:
         print(character + ' ' * padding + line.center(max_line_length) + ' ' * padding + character)
     print(character * width)
-
-
-
-
-def generate_summary(response, agent_name):
-    try:
-        summary_prompt = f"Please provide a concise summary of {agent_name}'s response in 100 words or less:\n\n{response}"
-        messages = [
-            {"role": "system", "content": "you make summaries of the responses of the agents in 100 words or less. You will embody them as you are them when talking, when summarizing use first person."},
-            
-            {"role": "user", "content": summary_prompt}
-        ]        
-        
-        summary_completion = client["groq_client"].chat.completions.create(
-                model="mixtral-8x7b-32768",
-                messages=messages,
-                max_tokens=32768,
-                temperature=0,
-            )
-
-        
-        summary = summary_completion.choices[0].message.content
-        sleep(10)
-        return summary
-    except Exception as e:
-        #logging.error(f"Error generating summary for {agent_name}: {format_error_message(e)}")
-        return None
-def extract_task(response, agent_name):
-    task_pattern = re.compile(fr'Tasks for {agent_name}:\n1\. (.*?)\n2\.')
-    match = task_pattern.search(response)
-    return match.group(1) if match else ""
-
-def extract_research_topic(response):
-    research_pattern = re.compile(r'Research topic: (.*)')
-    match = research_pattern.search(response)
-    return match.group(1) if match else ""
