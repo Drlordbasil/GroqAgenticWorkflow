@@ -113,13 +113,13 @@ def main():
 
         # Step 1: Bob breaks down the project into small, manageable tasks for each team member
         bob_input = f"[Python experts only, ensure high-quality code] Current time: {date_time}. You are Bob (money-minded micromanager), the boss of Mike, Annie, and Alex. Guide the team in creating a profitable script from scratch that generates real profit, not simulated profit. Break down the project into small, manageable tasks for each team member. Ensure that the team follows software engineering best practices, including reflection, refactoring, and step-by-step guidelines. Encourage the team to create robust, verbose, non-pseudo, and non-example final code implementations for real-world cases. Remind them to use available tools for research and information gathering as needed.\nHere is the current state of the project:\n\nProject Goal: {project_output_goal}\nCurrent files in the workspace: {workspace_files}\n\nPlease provide your input as Bob, including delegating tasks to Mike, Annie, and Alex based on their expertise and the project requirements. Encourage the team to brainstorm ideas, utilize available tools for research, and collaborate effectively to create a script that meets the project's goals. Use your tools to always check the status of the current files in the directory. You also need to use the tools to save your files. Ensure that the team is on track to meet the project's goals. ALWAYS USE YOUR OWN BUILT-IN USABLE JSON TOOLS AND TELL YOUR TEAM TO DO THE SAME! IMPORTANT: Remind the team to never use API keys or secrets in their code. They should only use open-source, free APIs and free Python libraries for their needs."
-        bob_response = agent_chat(bob_input, system_messages["bob"], memory["bob"], "mixtral-8x7b-32768", 0.5, agent_name="Bob")
+        bob_response = agent_chat(bob_input, system_messages["bob"], memory["bob"], "llama3-70b-8192", 0.5, agent_name="Bob")
         print(f"Bob's Response:\n{bob_response}")
 
         # Step 2: Each team member works on their assigned tasks
         for agent in ["mike", "annie", "alex"]:
             agent_input = f"Current time: {date_time}. You are {agent.capitalize()}, an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}. Here is your task from Bob:\n\n{bob_response}\n\nCurrent files in the workspace: {workspace_files}\n\nPlease provide your response, including any ideas, code snippets, or suggestions for creating a profitable script from scratch that generates real profit. Focus on creating high-quality, efficient, and well-documented code that follows software engineering best practices, including reflection and refactoring. Utilize available tools for research and information gathering as needed. Collaborate with your teammates to ensure a cohesive and functional script. Provide robust, verbose, non-pseudo, and non-example final code implementations for real-world cases. IMPORTANT: Never use API keys or secrets in your code. Only use open-source, free APIs and free Python libraries for your needs. ALWAYS BE HONEST AND TRUTHFUL. Never lie, deceive, or pretend that code or files exist when they do not. Always use the available tools to gather accurate information and verify the existence of files before referencing them."
-            agent_response = agent_chat(agent_input, system_messages[agent], memory[agent], "mixtral-8x7b-32768", 0.7, agent_name=agent.capitalize())
+            agent_response = agent_chat(agent_input, system_messages[agent], memory[agent], "llama3-70b-8192", 0.7, agent_name=agent.capitalize())
             print(f"{agent.capitalize()}'s Response:\n{agent_response}")
 
             # Step 2.1: Remind agents to use JSON tools correctly if they send an invalid format
@@ -155,7 +155,7 @@ def main():
         if code:
             print_block("Alex's Code Review")
             alex_review_input = f"Please review the following code and provide feedback on its quality, efficiency, and adherence to software engineering best practices. Ensure that no API keys or secrets are used in the code, and only open-source, free APIs and free Python libraries are utilized. IMPORTANT: Be honest and truthful in your review. If the code does not exist or has issues, clearly state that. Do not pretend that non-existent code or files exist. Use the available tools to verify the existence of files and gather accurate information before providing your review.\n\n{code}"
-            alex_review_response = agent_chat(alex_review_input, system_messages["alex"], memory["alex"], "mixtral-8x7b-32768", 0.5, agent_name="Alex")
+            alex_review_response = agent_chat(alex_review_input, system_messages["alex"], memory["alex"], "llama3-70b-8192", 0.5, agent_name="Alex")
             
             print(f"Alex's Code Review:\n{alex_review_response}")
 
@@ -165,7 +165,7 @@ def main():
         if code:
             print_block("Verifying Real Profit Generation")
             profit_verification_input = f"Please verify that the current code generates real profit and not simulated profit. Ensure that it doesn't use API keys or secrets while only using open-source libraries, models, and APIs that don't require keys, passwords, or credentials. Provide evidence and explanations to support your verification. Ensure that no API keys or secrets are used in the code, and only open-source, free APIs and free Python libraries are utilized. IMPORTANT: Be honest and truthful in your verification. If the code does not generate real profit or has issues, clearly state that. Do not pretend that non-existent code or files exist. Use the available tools to verify the functionality and gather accurate information before providing your verification.\n\nCurrent code:\n\n{code}"
-            profit_verification_response = agent_chat(profit_verification_input, system_messages["bob"], memory["bob"], "mixtral-8x7b-32768", 0.5, agent_name="Bob")
+            profit_verification_response = agent_chat(profit_verification_input, system_messages["bob"], memory["bob"], "llama3-70b-8192", 0.5, agent_name="Bob")
             print(f"Bob's Profit Verification:\n{profit_verification_response}")
 
             send_status_update(memory["mike"], memory["annie"], memory["alex"], f"Iteration {i} completed. Code created from scratch and verified for real profit generation. Code saved in the workspace. Current time: {date_time}")
