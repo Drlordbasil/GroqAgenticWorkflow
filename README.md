@@ -1,5 +1,5 @@
 
-##not abandoned as of 4/20/24 just out of ideas rn
+
 # Agentic Workflow README
 
 Welcome to the Agentic Workflow project! This project aims to create an AI-powered solution that generates profitable Python scripts through collaboration between AI agents. The agents work together to break down tasks, write code, review and refactor, and ensure the generated scripts are efficient, well-documented, and capable of producing real profit.
