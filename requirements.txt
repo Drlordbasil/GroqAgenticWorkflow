@@ -1,2 +1,5 @@
 openai
 python-dotenv
+groq
+langchain
+langchain_community
