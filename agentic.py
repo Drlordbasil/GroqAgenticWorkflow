@@ -103,7 +103,7 @@ def main():
             workspace_files = files.get("files", [])
         else:
             workspace_files = []
-        project_output_goal = f"Create a code/script making script/program with Python. This script will run and create a new script itself. Ensure that all Python scripts created work together properly without requiring API keys or secrets. Run the script in the workspace. The generated script should produce real profit, not simulated profit. Follow software engineering best practices, including reflection, refactoring, and step-by-step guidelines. Use available tools for research and information gathering as needed. Current time: {date_time}"
+        project_output_goal = f"Create the ultimate Windows 11 assistant for a human using voice-to-voice interaction. Use only free models without credential requirements. Current time: {date_time}"
         print(f"Project Output Goal: {project_output_goal}")
 
         for agent in ["mike", "annie", "bob", "alex"]:
@@ -112,19 +112,67 @@ def main():
             memory[agent].append({"role": "system", "content": "IMPORTANT: Always be honest and truthful. Never lie, deceive, or pretend that code or files exist when they do not. Always use the available tools to gather accurate information and verify the existence of files before referencing them."})
 
         # Step 1: Bob breaks down the project into small, manageable tasks for each team member
-        bob_input = f"[Python experts only, ensure high-quality code] Current time: {date_time}. You are Bob (money-minded micromanager), the boss of Mike, Annie, and Alex. Guide the team in creating a profitable script from scratch that generates real profit, not simulated profit. Break down the project into small, manageable tasks for each team member. Ensure that the team follows software engineering best practices, including reflection, refactoring, and step-by-step guidelines. Encourage the team to create robust, verbose, non-pseudo, and non-example final code implementations for real-world cases. Remind them to use available tools for research and information gathering as needed.\nHere is the current state of the project:\n\nProject Goal: {project_output_goal}\nCurrent files in the workspace: {workspace_files}\n\nPlease provide your input as Bob, including delegating tasks to Mike, Annie, and Alex based on their expertise and the project requirements. Encourage the team to brainstorm ideas, utilize available tools for research, and collaborate effectively to create a script that meets the project's goals. Use your tools to always check the status of the current files in the directory. You also need to use the tools to save your files. Ensure that the team is on track to meet the project's goals. ALWAYS USE YOUR OWN BUILT-IN USABLE JSON TOOLS AND TELL YOUR TEAM TO DO THE SAME! IMPORTANT: Remind the team to never use API keys or secrets in their code. They should only use open-source, free APIs and free Python libraries for their needs."
-        bob_response = agent_chat(bob_input, system_messages["bob"], memory["bob"], "llama3-70b-8192", 0.5, agent_name="Bob")
+        bob_input = f"""
+        [Python experts only, ensure high-quality code]
+        Current time: {date_time}
+        You are Bob (money-minded micromanager), the boss of Mike, Annie, and Alex. Guide the team in creating a profitable script from scratch that generates real profit, not simulated profit.
+        Break down the project into small, manageable tasks for each team member. Ensure that the team follows software engineering best practices, including reflection, refactoring, and step-by-step guidelines.
+        Encourage the team to create robust, verbose, non-pseudo, and non-example final code implementations for real-world cases. Remind them to use available tools for research and information gathering as needed.
+
+        Here is the current state of the project:
+        Project Goal: {project_output_goal}
+        Current files in the workspace: {workspace_files}
+
+        Please provide your input as Bob, including delegating tasks to Mike, Annie, and Alex based on their expertise and the project requirements.
+        Encourage the team to brainstorm ideas, utilize available tools for research, and collaborate effectively to create a script that meets the project's goals.
+        Use your tools to always check the status of the current files in the directory. You also need to use the tools to save your files.
+        Ensure that the team is on track to meet the project's goals.
+        ALWAYS USE YOUR OWN BUILT-IN USABLE JSON TOOLS AND TELL YOUR TEAM TO DO THE SAME!
+        IMPORTANT: Remind the team to never use API keys or secrets in their code. They should only use open-source, free APIs and free Python libraries for their needs.
+        """
+        bob_tool_response = agent_chat(bob_input, system_messages["bob"], memory["bob"], "llama3-70b-8192", 0.5, agent_name="Bob")
+        bob_response = agent_chat(bob_tool_response, system_messages["bob"], memory["bob"], "llama3-70b-8192", 0.5, agent_name="Bob")
         print(f"Bob's Response:\n{bob_response}")
 
         # Step 2: Each team member works on their assigned tasks
         for agent in ["mike", "annie", "alex"]:
-            agent_input = f"Current time: {date_time}. You are {agent.capitalize()}, an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}. Here is your task from Bob:\n\n{bob_response}\n\nCurrent files in the workspace: {workspace_files}\n\nPlease provide your response, including any ideas, code snippets, or suggestions for creating a profitable script from scratch that generates real profit. Focus on creating high-quality, efficient, and well-documented code that follows software engineering best practices, including reflection and refactoring. Utilize available tools for research and information gathering as needed. Collaborate with your teammates to ensure a cohesive and functional script. Provide robust, verbose, non-pseudo, and non-example final code implementations for real-world cases. IMPORTANT: Never use API keys or secrets in your code. Only use open-source, free APIs and free Python libraries for your needs. ALWAYS BE HONEST AND TRUTHFUL. Never lie, deceive, or pretend that code or files exist when they do not. Always use the available tools to gather accurate information and verify the existence of files before referencing them."
-            agent_response = agent_chat(agent_input, system_messages[agent], memory[agent], "llama3-70b-8192", 0.7, agent_name=agent.capitalize())
+            agent_input = f"""
+            Current time: {date_time}
+            You are {agent.capitalize()}, an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}.
+            Here is your task from Bob:
+            {bob_response}
+
+            Current files in the workspace: {workspace_files}
+
+            Please provide your response, including any ideas, code snippets, or suggestions for creating a profitable script from scratch that generates real profit.
+            Focus on creating high-quality, efficient, and well-documented code that follows software engineering best practices, including reflection and refactoring.
+            Utilize available tools for research and information gathering as needed. Collaborate with your teammates to ensure a cohesive and functional script.
+            Provide robust, verbose, non-pseudo, and non-example final code implementations for real-world cases.
+            IMPORTANT: Never use API keys or secrets in your code. Only use open-source, free APIs and free Python libraries for your needs.
+            ALWAYS BE HONEST AND TRUTHFUL. Never lie, deceive, or pretend that code or files exist when they do not.
+            Always use the available tools to gather accurate information and verify the existence of files before referencing them.
+            """
+            agent_tool_response = agent_chat(agent_input, system_messages[agent], memory[agent], "llama3-70b-8192", 0.7, agent_name=agent.capitalize())
+            agent_response = agent_chat(agent_tool_response, system_messages[agent], memory[agent], "llama3-70b-8192", 0.7, agent_name=agent.capitalize())
             print(f"{agent.capitalize()}'s Response:\n{agent_response}")
 
             # Step 2.1: Remind agents to use JSON tools correctly if they send an invalid format
             if "Warning: Invalid JSON format in the agent's response. Skipping tool execution." in agent_response:
-                tool_usage_reminder = f"Hey {agent.capitalize()}, it seems like you tried to use a tool but the format was invalid. Remember to use the tools in the following format:\n\n```json\n{{\n  \"tool\": \"tool_name\",\n  \"parameters\": {{\n    \"param1\": \"value1\",\n    \"param2\": \"value2\"\n  }}\n}}\n```\n\nReplace \"tool_name\" with the actual tool you want to use, and provide the necessary parameters for that tool. Let me know if you have any questions!"
+                tool_usage_reminder = f"""
+                Hey {agent.capitalize()}, it seems like you tried to use a tool but the format was invalid.
+                Remember to use the tools in the following format:
+                ```json
+                {{
+                  "tool": "tool_name",
+                  "parameters": {{
+                    "param1": "value1",
+                    "param2": "value2"
+                  }}
+                }}
+                ```
+                Replace "tool_name" with the actual tool you want to use, and provide the necessary parameters for that tool.
+                Let me know if you have any questions!
+                """
                 memory[agent].append({"role": "system", "content": tool_usage_reminder})
 
             # Step 2.2: Extract code from the agent's response
@@ -140,10 +188,10 @@ def main():
         if code:
             print_block("Verifying Real Profit Generation")
             pass_code_to_alex(code, memory["alex"])
-            
+
             for agent_name in ["mike", "annie", "bob"]:
                 memory[agent_name].append({"role": "system", "content": f"Code passed to Alex for review and deployment. (Make sure no API keys/secrets are involved)\n{code}"})
-            
+
             memory["alex"].append({"role": "system", "content": f"Code received from the team. Code: {code}"})
             file_content = read_multiple_files(workspace_files)
             memory["alex"].append({"role": "system", "content": f"All files in workspace: {workspace_files} with content: {file_content}"})
@@ -154,9 +202,15 @@ def main():
 
         if code:
             print_block("Alex's Code Review")
-            alex_review_input = f"Please review the following code and provide feedback on its quality, efficiency, and adherence to software engineering best practices. Ensure that no API keys or secrets are used in the code, and only open-source, free APIs and free Python libraries are utilized. IMPORTANT: Be honest and truthful in your review. If the code does not exist or has issues, clearly state that. Do not pretend that non-existent code or files exist. Use the available tools to verify the existence of files and gather accurate information before providing your review.\n\n{code}"
+            alex_review_input = f"""
+            Please review the following code and provide feedback on its quality, efficiency, and adherence to software engineering best practices.
+            Ensure that no API keys or secrets are used in the code, and only open-source, free APIs and free Python libraries are utilized.
+            IMPORTANT: Be honest and truthful in your review. If the code does not exist or has issues, clearly state that.
+            Do not pretend that non-existent code or files exist. Use the available tools to verify the existence of files and gather accurate information before providing your review.
+
+            {code}
+            """
             alex_review_response = agent_chat(alex_review_input, system_messages["alex"], memory["alex"], "llama3-70b-8192", 0.5, agent_name="Alex")
-            
             print(f"Alex's Code Review:\n{alex_review_response}")
 
             memory["alex"].append({"role": "system", "content": f"Code review completed. Feedback: {alex_review_response}"})
@@ -164,7 +218,17 @@ def main():
         # Step 5: Bob verifies real profit generation
         if code:
             print_block("Verifying Real Profit Generation")
-            profit_verification_input = f"Please verify that the current code generates real profit and not simulated profit. Ensure that it doesn't use API keys or secrets while only using open-source libraries, models, and APIs that don't require keys, passwords, or credentials. Provide evidence and explanations to support your verification. Ensure that no API keys or secrets are used in the code, and only open-source, free APIs and free Python libraries are utilized. IMPORTANT: Be honest and truthful in your verification. If the code does not generate real profit or has issues, clearly state that. Do not pretend that non-existent code or files exist. Use the available tools to verify the functionality and gather accurate information before providing your verification.\n\nCurrent code:\n\n{code}"
+            profit_verification_input = f"""
+            Please verify that the current code generates real profit and not simulated profit.
+            Ensure that it doesn't use API keys or secrets while only using open-source libraries, models, and APIs that don't require keys, passwords, or credentials.
+            Provide evidence and explanations to support your verification.
+            Ensure that no API keys or secrets are used in the code, and only open-source, free APIs and free Python libraries are utilized.
+            IMPORTANT: Be honest and truthful in your verification. If the code does not generate real profit or has issues, clearly state that.
+            Do not pretend that non-existent code or files exist. Use the available tools to verify the functionality and gather accurate information before providing your verification.
+
+            Current code:
+            {code}
+            """
             profit_verification_response = agent_chat(profit_verification_input, system_messages["bob"], memory["bob"], "llama3-70b-8192", 0.5, agent_name="Bob")
             print(f"Bob's Profit Verification:\n{profit_verification_response}")
 
