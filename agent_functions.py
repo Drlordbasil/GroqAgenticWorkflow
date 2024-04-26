@@ -22,26 +22,11 @@ def get_current_date_and_time():
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d %H:%M:%S.%f')
 
+
+
 def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=60, agent_name=None):
-    """
-    Engage in a conversation with an AI agent using the provided tools and memory.
-
-    Args:
-        user_input (str): The user's input message.
-        system_message (str): The system message to guide the agent's behavior.
-        memory (list): The agent's memory, containing relevant context and information.
-        model (str): The name of the language model to use for generating responses.
-        temperature (float): The temperature value for controlling the randomness of the generated responses.
-        max_retries (int, optional): The maximum number of retries in case of errors. Defaults to 5.
-        retry_delay (int, optional): The delay in seconds between retries. Defaults to 60.
-        agent_name (str, optional): The name of the agent. Defaults to None.
-
-    Returns:
-        str: The agent's response.
-    """
     browser_tools = BrowserTools()
     code_execution_manager = CodeExecutionManager()
-    nlp = spacy.load("en_core_web_sm")
 
     messages = [
         SystemMessage(content=system_message),
@@ -54,7 +39,7 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             "type": "function",
             "function": {
                 "name": "search_google",
-                "description": "Search Google for relevant information",
+                "description": "Search Google for relevant information by using the provided query",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -71,7 +56,7 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             "type": "function",
             "function": {
                 "name": "scrape_page",
-                "description": "Scrape a web page for relevant information",
+                "description": "Scrape a web page for relevant information by using the provided URL",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -88,13 +73,13 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             "type": "function",
             "function": {
                 "name": "test_code",
-                "description": "Test the provided code",
+                "description": "Test the provided code snippet for errors and return the results",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "code": {
                             "type": "string",
-                            "description": "The code to test",
+                            "description": "The code to test for errors",
                         }
                     },
                     "required": ["code"],
@@ -104,16 +89,8 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
         {
             "type": "function",
             "function": {
-                "name": "get_current_date_and_time",
-                "description": "Get the current date and time",
-                "parameters": {},
-            },
-        },
-        {
-            "type": "function",
-            "function": {
                 "name": "save_file",
-                "description": "Save the provided content to a file",
+                "description": "Save the provided content to a file with the specified file path",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -134,7 +111,7 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             "type": "function",
             "function": {
                 "name": "read_file",
-                "description": "Read the content of the provided file",
+                "description": "Read the content of the provided file path and return the content as a string",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -151,7 +128,7 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             "type": "function",
             "function": {
                 "name": "list_files",
-                "description": "List the files in the workspace",
+                "description": "List the files in the workspace directory and return the list of file names as a string array",
                 "parameters": {},
             },
         },
@@ -159,13 +136,13 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             "type": "function",
             "function": {
                 "name": "format_code",
-                "description": "Format the provided code",
+                "description": "Format the provided code snippet and return the formatted code as a string",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "code": {
                             "type": "string",
-                            "description": "The code to format",
+                            "description": "The code to format using a code formatter",
                         }
                     },
                     "required": ["code"],
@@ -176,13 +153,13 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             "type": "function",
             "function": {
                 "name": "generate_documentation",
-                "description": "Generate documentation for the provided code",
+                "description": "Generate documentation for the provided code snippet and return the documentation as a string",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "code": {
                             "type": "string",
-                            "description": "The code to generate documentation for",
+                            "description": "The code to generate documentation for using a documentation generator",
                         }
                     },
                     "required": ["code"],
@@ -193,13 +170,13 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
             "type": "function",
             "function": {
                 "name": "commit_changes",
-                "description": "Commit changes to the repository",
+                "description": "Commit changes to the repository with the provided commit message and code changes",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "code": {
                             "type": "string",
-                            "description": "The code changes to commit",
+                            "description": "The code changes to commit to the repository",
                         }
                     },
                     "required": ["code"],
@@ -217,73 +194,75 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
         try:
             print(f"\n{'=' * 80}\n🚀 Iteration {retry_count + 1} - Engaging {agent_name if agent_name else 'AI Agent'} 🚀\n{'=' * 80}\n")
 
-            chat_completion = chain.invoke({"text": user_input})
-            response_message = chat_completion.content
-            
-            print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Response:\n{response_message}\n")
+            response_message = chain.invoke({"text": user_input})
 
-            tool_calls = []
-            try:
-                tool_calls = json.loads(response_message).get("tool_calls", [])
-            except json.JSONDecodeError:
-                print("Warning: Invalid JSON format in the agent's response. Skipping tool execution.")
+            if hasattr(response_message, "content"):
+                print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Response:\n{response_message.content}\n")
 
-            if tool_calls:
-                available_functions = {
-                    "search_google": browser_tools.search_google,
-                    "scrape_page": browser_tools.scrape_page,
-                    "test_code": code_execution_manager.test_code,
-                    "extract_code": extract_code,
-                    "get_current_date_and_time": get_current_date_and_time,
-                    "save_file": code_execution_manager.save_file,
-                    "read_file": code_execution_manager.read_file,
-                    "list_files": code_execution_manager.list_files_in_workspace,
-                    "format_code": code_execution_manager.format_code,
-                    "generate_documentation": code_execution_manager.generate_documentation,
-                    "commit_changes": code_execution_manager.commit_changes,
-                }
+                tool_calls = response_message.tool_calls
 
-                messages.append(AIMessage(content=response_message))
-                messages.append(SystemMessage(content="Tools are available for use. You can use them to perform various tasks. Please wait while I execute the tools."))
-                sleep(10)
-                
-                for tool_call in tool_calls:
-                    function_name = tool_call["function"]["name"]
-                    function_args = tool_call["function"]["arguments"]
-                    
-                    print(f"🛠️ Executing tool: {function_name}")
-                    print(f"📥 Tool arguments: {function_args}")
+                if tool_calls:
+                    available_functions = {
+                        "search_google": browser_tools.search_google,
+                        "scrape_page": browser_tools.scrape_page,
+                        "test_code": code_execution_manager.test_code,
+                        "save_file": code_execution_manager.save_file,
+                        "read_file": code_execution_manager.read_file,
+                        "list_files": code_execution_manager.list_files_in_workspace,
+                        "format_code": code_execution_manager.format_code,
+                        "generate_documentation": code_execution_manager.generate_documentation,
+                        "commit_changes": code_execution_manager.commit_changes,
+                    }
 
-                    if function_name in available_functions:
-                        function_to_call = available_functions[function_name]
-                        function_response = function_to_call(**function_args)
-                        print(f"📤 Tool response: {function_response}")
+                    messages.append(AIMessage(content=response_message.content))
+                    messages.append(SystemMessage(content="Tools are available for use. You can use them to perform various tasks. Please wait while I execute the tools."))
+                    sleep(10)
 
-                        messages.append(
-                            {
-                                "tool_call_id": tool_call["id"],
-                                "role": "tool",
-                                "name": function_name,
-                                "content": function_response,
-                            }
-                        )
-                    else:
-                        print(f"Unknown tool: {function_name}")
-                
-                second_response = chain.invoke({"text": user_input})
-                response_content = second_response.content
-                sleep(10)
-                print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Updated Response:\n{response_content}\n")
+                    for tool_call in tool_calls:
+                        if hasattr(tool_call, "function") and hasattr(tool_call.function, "name") and hasattr(tool_call.function, "arguments"):
+                            function_name = tool_call.function.name
+                            function_args = json.loads(tool_call.function.arguments)
+
+                            print(f"🛠️ Executing tool: {function_name}")
+                            print(f"📥 Tool arguments: {function_args}")
+
+                            if function_name in available_functions:
+                                function_to_call = available_functions[function_name]
+                                function_response = function_to_call(**function_args)
+                                print(f"📤 Tool response: {function_response}")
+
+                                messages.append(
+                                    {
+                                        "tool_call_id": tool_call.id,
+                                        "role": "tool",
+                                        "name": function_name,
+                                        "content": function_response,
+                                    }
+                                )
+                            else:
+                                print(f"Unknown tool: {function_name}")
+                        else:
+                            print("Warning: Invalid tool call format. Skipping tool execution.")
+
+                    prompt = ChatPromptTemplate.from_messages(messages)
+                    chain = prompt | chat
+                    response_content = chain.invoke({"text": user_input}).content
+                    sleep(10)
+                    print(f"\n🤖 {agent_name if agent_name else 'AI Agent'}'s Updated Response:\n{response_content}\n")
+
+                else:
+                    response_content = response_message.content
+
+                memory.append({"role": "assistant", "content": f"Available tools: {tools}"})
+                memory.append({"role": "assistant", "content": response_content})
+                memory.append({"role": "user", "content": user_input})
+
+                sleep(20)
+                return response_content
 
             else:
-                response_content = response_message
-
-            memory.append({"role": "assistant", "content": f"Available tools: {tools}"})
-            memory.append({"role": "assistant", "content": response_content})
-            memory.append({"role": "user", "content": user_input})
-            
-            sleep(20)
-            return response_content
+                print("Warning: Response message does not have content attribute. Retrying.")
+                raise Exception("Response message does not have content attribute.")
 
         except Exception as e:
             retry_count += 1
