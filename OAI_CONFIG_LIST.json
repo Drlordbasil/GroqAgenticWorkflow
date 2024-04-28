@@ -1,0 +1,13 @@
+[
+    {
+      "model": "llama3-70b-8192",
+      "api_key": "gsk_",
+      "base_url": "https://api.groq.com/openai/v1"
+    },
+    
+    {
+      "model": "dolphin-llama3",
+      "base_url": "http://localhost:11434/v1"
+    }
+      
+  ]
