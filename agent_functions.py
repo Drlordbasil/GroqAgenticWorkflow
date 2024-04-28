@@ -309,13 +309,14 @@ def save_checkpoint(checkpoint_data, checkpoint_file, code, system_messages, mem
     if code:
         # Engage the agent to provide a relevant file name
         file_name_response = agent_chat(f"Please provide a relevant file name for the following code snippet:\n\n{code} \n\n only respond with a singular file name valid for your file. RESPONSE FORMAT ALWAYS(change the filename depending): main.py", system_messages[agent_name], memory[agent_name], "mixtral-8x7b-32768", 0.7, agent_name=agent_name.capitalize())
-
+        # remove /n from the response
         # Extract the file name using regular expressions
         file_name_pattern = r'(\w+\.(?:py|txt|json|csv|md))'
         file_name_match = re.search(file_name_pattern, file_name_response, re.IGNORECASE)
 
         if file_name_match:
             file_name = file_name_match.group(1)
+            file_name = file_name.replace("/", "_")
         else:
             # If no valid file name is found, use a default name
             file_name = "generated_code.py"

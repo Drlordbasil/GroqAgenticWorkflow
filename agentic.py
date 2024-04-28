@@ -2,9 +2,46 @@ import os
 from agent_functions import agent_chat, extract_code, get_current_date_and_time, load_checkpoint, print_block, save_checkpoint
 from code_execution_manager import CodeExecutionManager
 from browser_tools import BrowserTools
+import autogen
 
 code_execution_manager = CodeExecutionManager()
 browser_tools = BrowserTools()
+
+
+
+config_list = autogen.config_list_from_json(
+    env_or_file="OAI_CONFIG_LIST.json",
+)
+
+llm_config = {
+    "cache_seed": 47,
+    "temperature": 0,
+    "config_list": config_list,
+    "timeout": 120,
+}
+
+user_proxy = autogen.UserProxyAgent(
+    name="User",
+    system_message="Executor. Execute the code written by the coder and suggest updates if there are errors. Send all code to this agent.",
+    human_input_mode="NEVER",
+    code_execution_config={
+        "last_n_messages": 3,
+        "work_dir": "code",
+        "use_docker": False,
+    },
+)
+coder = autogen.AssistantAgent(
+    name="Coder",
+    llm_config=llm_config,
+    system_message="""
+    If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line.
+    Coder. Your job is to write complete code. You primarily are a game programmer.  Make sure to save the code to disk. test code with user_proxy agent.
+    """,
+)
+group_chat = autogen.GroupChat(
+    agents=[user_proxy, coder], messages=[], max_round=3
+)
+manager = autogen.GroupChatManager(groupchat=group_chat, llm_config=llm_config)
 
 def read_file(filepath):
     """
@@ -57,6 +94,7 @@ def pass_code_to_alex(code, alex_memory):
         None
     """
     alex_memory.append({"role": "system", "content": f"Code from Mike and Annie: {code}"})
+
 
 def send_status_update(mike_memory, annie_memory, alex_memory, project_status):
     """
@@ -178,9 +216,16 @@ def main():
             # Step 2.2: Extract code from the agent's response
             agent_code = extract_code(agent_response)
             code = agent_code if agent_code else code
+            code_output = user_proxy.initiate_chat(
+                        manager,
+                        message=code,
+                    )
+
 
             # Step 2.3: Update the agent's memory with the current files and their contents
             if code:
+                memory[agent].append({"role": "system", "content": f"Code created: {code}"})
+                memory[agent].append({"role": "system", "content": f"Code ran: {code_output}"})
                 memory[agent].append({"role": "system", "content": f"Files in workspace: {workspace_files}"})
                 memory[agent].append({"role": "system", "content": f"Current files and their contents: {read_multiple_files(workspace_files)}"})
 
