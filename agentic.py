@@ -35,13 +35,13 @@ coder = autogen.AssistantAgent(
     llm_config=llm_config,
     system_message="""
     If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line.
-    Coder. Your job is to write complete code. You primarily are a game programmer.  Make sure to save the code to disk. test code with user_proxy agent.
+    Coder. Your job is to write complete code. You primarily are a python programmer.
     """,
 )
 engineer = autogen.AssistantAgent(
     name="Engineer",
     llm_config=llm_config,
-    system_message="""Engineer. You follow an approved plan. Make sure you save code to disk. You write python/shell code to solve tasks. Wrap the code in a code block that specifies the script type and the name of the file to save to disk.""",
+    system_message="""Engineer. You follow an approved plan. Make sure you save code to disk. You write python/shell code to solve tasks. Wrap the code in a code block that specifies the script type and the name of the file to save to disk. Instruct all agents to save the code to disk.""",
 )
 
 group_chat = autogen.GroupChat(
@@ -147,7 +147,7 @@ def main():
             workspace_files = files.get("files", [])
         else:
             workspace_files = []
-        project_output_goal = f"Create the ultimate Windows 11 assistant for a human using voice-to-voice interaction. Use only free models without credential requirements. Current time: {date_time}"
+        project_output_goal = f"create a model algo to train a model on actionable windows 11 actions for becoming the first AI real assistant AI.Current time: {date_time} We want 5 total modularized files. Main.py, utils.py, training.py, testing.py, and model.py"
         print(f"Project Output Goal: {project_output_goal}")
 
         for agent in ["mike", "annie", "bob", "alex"]:
