@@ -38,8 +38,14 @@ coder = autogen.AssistantAgent(
     Coder. Your job is to write complete code. You primarily are a game programmer.  Make sure to save the code to disk. test code with user_proxy agent.
     """,
 )
+engineer = autogen.AssistantAgent(
+    name="Engineer",
+    llm_config=llm_config,
+    system_message="""Engineer. You follow an approved plan. Make sure you save code to disk. You write python/shell code to solve tasks. Wrap the code in a code block that specifies the script type and the name of the file to save to disk.""",
+)
+
 group_chat = autogen.GroupChat(
-    agents=[user_proxy, coder], messages=[], max_round=3
+    agents=[user_proxy, coder,engineer], messages=[], max_round=3
 )
 manager = autogen.GroupChatManager(groupchat=group_chat, llm_config=llm_config)
 
