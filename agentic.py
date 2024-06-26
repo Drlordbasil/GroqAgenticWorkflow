@@ -1,11 +1,11 @@
 import os
 from agent_functions import agent_chat, extract_code, get_current_date_and_time, load_checkpoint, print_block, save_checkpoint
 from code_execution_manager import CodeExecutionManager
-from browser_tools import BrowserTools
+
 import autogen
 
 code_execution_manager = CodeExecutionManager()
-browser_tools = BrowserTools()
+
 
 
 
@@ -289,7 +289,7 @@ def main():
         save_checkpoint(checkpoint_data, checkpoint_file, code, system_messages, memory, agent_name="annie")
 
     print_block("Agentic Workflow Completed", character='*')
-    browser_tools.close()
+
 
 if __name__ == "__main__":
     main()

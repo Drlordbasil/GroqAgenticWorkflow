@@ -5,13 +5,13 @@ import re
 import pickle
 import zlib
 from time import sleep
-from browser_tools import BrowserTools
+
 from code_execution_manager import CodeExecutionManager
 import spacy
 from langchain.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
-
+from browser_tools import WebResearchTool
 def get_current_date_and_time():
     """
     Get the current date and time.
@@ -25,9 +25,9 @@ def get_current_date_and_time():
 
 
 def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=60, agent_name=None):
-    browser_tools = BrowserTools()
+    
     code_execution_manager = CodeExecutionManager()
-
+    web_search = WebResearchTool()
     messages = [
         SystemMessage(content=system_message),
         *[AIMessage(content=msg["content"]) if msg["role"] == "assistant" else HumanMessage(content=msg["content"]) for msg in memory[-3:]],
@@ -35,40 +35,7 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
     ]
 
     tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "search_google",
-                "description": "Search Google for relevant information by using the provided query",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The search query",
-                        }
-                    },
-                    "required": ["query"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "scrape_page",
-                "description": "Scrape a web page for relevant information by using the provided URL",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "url": {
-                            "type": "string",
-                            "description": "The URL of the web page to scrape",
-                        }
-                    },
-                    "required": ["url"],
-                },
-            },
-        },
+
         {
             "type": "function",
             "function": {
@@ -135,55 +102,23 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
         {
             "type": "function",
             "function": {
-                "name": "format_code",
-                "description": "Format the provided code snippet and return the formatted code as a string",
+                "name": "web_search",
+                "description": "Search the web for information on the provided query and return the search results",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "code": {
+                        "query": {
                             "type": "string",
-                            "description": "The code to format using a code formatter",
+                            "description": "The query to search the web for",
                         }
                     },
-                    "required": ["code"],
+                    "required": ["query"],
                 },
             },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "generate_documentation",
-                "description": "Generate documentation for the provided code snippet and return the documentation as a string",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "code": {
-                            "type": "string",
-                            "description": "The code to generate documentation for using a documentation generator",
-                        }
-                    },
-                    "required": ["code"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "commit_changes",
-                "description": "Commit changes to the repository with the provided commit message and code changes",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "code": {
-                            "type": "string",
-                            "description": "The code changes to commit to the repository",
-                        }
-                    },
-                    "required": ["code"],
-                },
-            },
-        },
+        }
+
     ]
+
 
     chat = ChatGroq(temperature=temperature, model_name=model)
     prompt = ChatPromptTemplate.from_messages(messages)
@@ -203,15 +138,12 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
 
                 if tool_calls:
                     available_functions = {
-                        "search_google": browser_tools.search_google,
-                        "scrape_page": browser_tools.scrape_page,
+                        "web_search": web_search.web_research,
                         "test_code": code_execution_manager.test_code,
                         "save_file": code_execution_manager.save_file,
                         "read_file": code_execution_manager.read_file,
                         "list_files": code_execution_manager.list_files_in_workspace,
-                        "format_code": code_execution_manager.format_code,
-                        "generate_documentation": code_execution_manager.generate_documentation,
-                        "commit_changes": code_execution_manager.commit_changes,
+
                     }
 
                     messages.append(AIMessage(content=response_message.content))
