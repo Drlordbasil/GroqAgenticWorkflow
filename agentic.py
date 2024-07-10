@@ -1,53 +1,12 @@
 import os
-from agent_functions import agent_chat, extract_code, get_current_date_and_time, load_checkpoint, print_block, save_checkpoint
+from agent_functions import agent_chat, extract_code, get_current_date_and_time, load_checkpoint, print_block, save_checkpoint,tools
 from code_execution_manager import CodeExecutionManager
 
-import autogen
+
 
 code_execution_manager = CodeExecutionManager()
 
 
-
-
-config_list = autogen.config_list_from_json(
-    env_or_file="OAI_CONFIG_LIST.json",
-)
-
-llm_config = {
-    "cache_seed": 47,
-    "temperature": 0,
-    "config_list": config_list,
-    "timeout": 120,
-}
-
-user_proxy = autogen.UserProxyAgent(
-    name="User",
-    system_message="Executor. Execute the code written by the coder and suggest updates if there are errors. Send all code to this agent.",
-    human_input_mode="NEVER",
-    code_execution_config={
-        "last_n_messages": 3,
-        "work_dir": "code",
-        "use_docker": False,
-    },
-)
-coder = autogen.AssistantAgent(
-    name="Coder",
-    llm_config=llm_config,
-    system_message="""
-    If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line.
-    Coder. Your job is to write complete code. You primarily are a python programmer.
-    """,
-)
-engineer = autogen.AssistantAgent(
-    name="Engineer",
-    llm_config=llm_config,
-    system_message="""Engineer. You follow an approved plan. Make sure you save code to disk. You write python/shell code to solve tasks. Wrap the code in a code block that specifies the script type and the name of the file to save to disk. Instruct all agents to save the code to disk.""",
-)
-
-group_chat = autogen.GroupChat(
-    agents=[user_proxy, coder,engineer], messages=[], max_round=3
-)
-manager = autogen.GroupChatManager(groupchat=group_chat, llm_config=llm_config)
 
 def read_file(filepath):
     """
@@ -151,9 +110,9 @@ def main():
         print(f"Project Output Goal: {project_output_goal}")
 
         for agent in ["mike", "annie", "bob", "alex"]:
-            memory[agent].append({"role": "system", "content": f"Files in workspace: {workspace_files}"})
-            memory[agent].append({"role": "system", "content": f"Iteration {i} started. Current time: {date_time}"})
-            memory[agent].append({"role": "system", "content": "IMPORTANT: Always be honest and truthful. Never lie, deceive, or pretend that code or files exist when they do not. Always use the available tools to gather accurate information and verify the existence of files before referencing them."})
+            memory[agent].append({"role": "assistant", "content": f"Files in workspace: {workspace_files}"})
+            memory[agent].append({"role": "assistant", "content": f"Iteration {i} started. Current time: {date_time}"})
+            memory[agent].append({"role": "assistant", "content": "IMPORTANT: Always be honest and truthful. Never lie, deceive, or pretend that code or files exist when they do not. Always use the available tools to gather accurate information and verify the existence of files before referencing them."})
 
         # Step 1: Bob breaks down the project into small, manageable tasks for each team member
         bob_input = f"""
@@ -185,7 +144,7 @@ def main():
             You are {agent.capitalize()}, an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}.
             Here is your task from Bob:
             {bob_response}
-
+            tools you have: {tools}
             Current files in the workspace: {workspace_files}
 
             Please provide your response, including any ideas, code snippets, or suggestions for creating a profitable script from scratch that generates real profit.
@@ -222,18 +181,15 @@ def main():
             # Step 2.2: Extract code from the agent's response
             agent_code = extract_code(agent_response)
             code = agent_code if agent_code else code
-            code_output = user_proxy.initiate_chat(
-                        manager,
-                        message=code,
-                    )
+
 
 
             # Step 2.3: Update the agent's memory with the current files and their contents
             if code:
-                memory[agent].append({"role": "system", "content": f"Code created: {code}"})
-                memory[agent].append({"role": "system", "content": f"Code ran: {code_output}"})
-                memory[agent].append({"role": "system", "content": f"Files in workspace: {workspace_files}"})
-                memory[agent].append({"role": "system", "content": f"Current files and their contents: {read_multiple_files(workspace_files)}"})
+                memory[agent].append({"role": "assistant", "content": f"Code created: {code}"})
+
+                memory[agent].append({"role": "assistant", "content": f"Files in workspace: {workspace_files}"})
+                memory[agent].append({"role": "assistant", "content": f"Current files and their contents: {read_multiple_files(workspace_files)}"})
 
         # Step 3: Pass the code to Alex for review and deployment
         if code:
@@ -241,11 +197,11 @@ def main():
             pass_code_to_alex(code, memory["alex"])
 
             for agent_name in ["mike", "annie", "bob"]:
-                memory[agent_name].append({"role": "system", "content": f"Code passed to Alex for review and deployment. (Make sure no API keys/secrets are involved)\n{code}"})
+                memory[agent_name].append({"role": "assistant", "content": f"Code passed to Alex for review and deployment. (Make sure no API keys/secrets are involved)\n{code}"})
 
-            memory["alex"].append({"role": "system", "content": f"Code received from the team. Code: {code}"})
+            memory["alex"].append({"role": "assistant", "content": f"Code received from the team. Code: {code}"})
             file_content = read_multiple_files(workspace_files)
-            memory["alex"].append({"role": "system", "content": f"All files in workspace: {workspace_files} with content: {file_content}"})
+            memory["alex"].append({"role": "assistant", "content": f"All files in workspace: {workspace_files} with content: {file_content}"})
 
         # Step 4: Alex performs a final code review and provides feedback
         alex_code = extract_code(agent_response)
@@ -264,7 +220,7 @@ def main():
             alex_review_response = agent_chat(alex_review_input, system_messages["alex"], memory["alex"], "llama3-70b-8192", 0.5, agent_name="Alex")
             print(f"Alex's Code Review:\n{alex_review_response}")
 
-            memory["alex"].append({"role": "system", "content": f"Code review completed. Feedback: {alex_review_response}"})
+            memory["alex"].append({"role": "assistant", "content": f"Code review completed. Feedback: {alex_review_response}"})
 
         # Step 5: Bob verifies real profit generation
         if code:

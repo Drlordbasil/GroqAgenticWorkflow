@@ -12,29 +12,8 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 from browser_tools import WebResearchTool
-def get_current_date_and_time():
-    """
-    Get the current date and time.
-
-    Returns:
-        str: The current date and time in the format 'YYYY-MM-DD HH:MM:SS.ffffff'.
-    """
-    now = datetime.datetime.now()
-    return now.strftime('%Y-%m-%d %H:%M:%S.%f')
-
-
-
-def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=60, agent_name=None):
-    
-    code_execution_manager = CodeExecutionManager()
-    web_search = WebResearchTool()
-    messages = [
-        SystemMessage(content=system_message),
-        *[AIMessage(content=msg["content"]) if msg["role"] == "assistant" else HumanMessage(content=msg["content"]) for msg in memory[-3:]],
-        HumanMessage(content=user_input)
-    ]
-
-    tools = [
+from autogen_coding import AutogenCoding
+tools = [
 
         {
             "type": "function",
@@ -115,9 +94,50 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                     "required": ["query"],
                 },
             },
-        }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "coding",
+                "description": "Start a coding session with the provided task description and return the coding result",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task": {
+                            "type": "string",
+                            "description": "The task description for the coding session",
+                        }
+                    },
+                    "required": ["task"],
+                },
+            },
+        },
 
     ]
+def get_current_date_and_time():
+    """
+    Get the current date and time.
+
+    Returns:
+        str: The current date and time in the format 'YYYY-MM-DD HH:MM:SS.ffffff'.
+    """
+    now = datetime.datetime.now()
+    return now.strftime('%Y-%m-%d %H:%M:%S.%f')
+
+
+
+def agent_chat(user_input, system_message, memory, model, temperature, max_retries=5, retry_delay=60, agent_name=None):
+    
+    code_execution_manager = CodeExecutionManager()
+    web_search = WebResearchTool()
+    coding = AutogenCoding()
+    messages = [
+        SystemMessage(content=system_message),
+        *[AIMessage(content=msg["content"]) if msg["role"] == "assistant" else HumanMessage(content=msg["content"]) for msg in memory[-3:]],
+        HumanMessage(content=user_input)
+    ]
+
+
 
 
     chat = ChatGroq(temperature=temperature, model_name=model)
@@ -143,11 +163,12 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                         "save_file": code_execution_manager.save_file,
                         "read_file": code_execution_manager.read_file,
                         "list_files": code_execution_manager.list_files_in_workspace,
+                        "coding": coding.start_chat,
 
                     }
 
                     messages.append(AIMessage(content=response_message.content))
-                    messages.append(SystemMessage(content="Tools are available for use. You can use them to perform various tasks. Please wait while I execute the tools."))
+                    messages.append(AIMessage(content="Tools are available for use. You can use them to perform various tasks. Please wait while I execute the tools."))
                     sleep(10)
 
                     for tool_call in tool_calls:

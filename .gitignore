@@ -1,1 +1,14 @@
 selector_rl_state.json
+.cache/47/cache.db
+__pycache__/browser_tools.cpython-312.pyc
+.cache/47/cache.db
+__pycache__/browser_tools.cpython-312.pyc
+__pycache__/task_manager.cpython-312.pyc
+__pycache__/memory_ollama.cpython-312.pyc
+__pycache__/autogen_coding.cpython-312.pyc
+.cache/42/cache.db
+__pycache__/agent_functions.cpython-312.pyc
+__pycache__/browser_tools.cpython-312.pyc
+__pycache__/crypto_wallet.cpython-312.pyc
+agentic_workflow_checkpoint.pkl
+__pycache__/browser_tools.cpython-312.pyc
