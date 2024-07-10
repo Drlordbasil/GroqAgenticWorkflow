@@ -16,8 +16,19 @@ import json
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import networkx as nx
+import logging
+import time
+from requests.exceptions import RequestException
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urlparse, urljoin
 
-max_content_length = 1000
+max_content_length = 5000  # Increased for more comprehensive results
+max_retries = 3
+retry_delay = 5
+max_pages_per_site = 10  # Increased for more thorough crawling
+max_search_results = 10  # Increased number of search results to process
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class SelectorRL:
     def __init__(self):
@@ -69,17 +80,27 @@ class SelectorRL:
             self.q_values = state['q_values']
             self.selectors = state['selectors']
         except FileNotFoundError:
-            print("No saved state found. Starting with default values.")
-
+            logging.info("No saved state found. Starting with default values.")
 class WebResearchTool:
     def __init__(self, max_content_length=max_content_length):
         self.max_content_length = max_content_length
         self.selector_rl = SelectorRL()
         self.selector_rl.load_state()
         self.vectorizer = TfidfVectorizer()
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        })
 
     def _initialize_webdriver(self):
         options = webdriver.ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-browser-side-navigation')
+        options.add_argument('--disable-features=VizDisplayCompositor')
         service = ChromeService(ChromeDriverManager().install())
         return webdriver.Chrome(service=service, options=options)
 
@@ -125,84 +146,112 @@ class WebResearchTool:
         """, element)
 
     def extract_text_from_url(self, url):
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            text = trafilatura.extract(response.text, include_comments=False, include_tables=False)
-            if text and len(text) >= 50:
-                return text
+        for attempt in range(max_retries):
+            try:
+                response = self.session.get(url, timeout=10)
+                response.raise_for_status()
+                text = trafilatura.extract(response.text, include_comments=False, include_tables=False)
+                if text and len(text) >= 50:
+                    return text
 
-            driver = self._initialize_webdriver()
-            driver.get(url)
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
-            for element in soup(['script', 'style', 'nav', 'footer', 'aside']):
-                element.decompose()
-            text = ' '.join(p.get_text().strip() for p in soup.find_all('p') if len(p.get_text().strip()) > 20)
-            return text if len(text) >= 50 else None
-        except Exception as e:
-            print(f"Error extracting text from URL {url}: {e}")
-            return None
-        finally:
-            if 'driver' in locals():
-                driver.quit()
+                driver = self._initialize_webdriver()
+                driver.get(url)
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                for element in soup(['script', 'style', 'nav', 'footer', 'aside']):
+                    element.decompose()
+                text = ' '.join(p.get_text().strip() for p in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li']) if len(p.get_text().strip()) > 20)
+                return text if len(text) >= 50 else None
+            except RequestException as e:
+                logging.warning(f"Error extracting text from URL {url}: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    logging.error(f"Failed to extract text from URL {url} after {max_retries} attempts")
+                    return None
+            finally:
+                if 'driver' in locals():
+                    driver.quit()
 
-    def crawl_website(self, url, max_pages=5):
+    def crawl_website(self, url, max_pages=max_pages_per_site):
         visited = set()
         to_visit = [url]
         graph = nx.DiGraph()
         content = {}
 
-        while to_visit and len(visited) < max_pages:
-            current_url = to_visit.pop(0)
-            if current_url in visited:
-                continue
+        try:
+            while to_visit and len(visited) < max_pages:
+                current_url = to_visit.pop(0)
+                if current_url in visited:
+                    continue
 
-            visited.add(current_url)
+                visited.add(current_url)
 
+                try:
+                    response = self.session.get(current_url, timeout=10)
+                    response.raise_for_status()
+                    soup = BeautifulSoup(response.text, 'html.parser')
 
-            try:
-                response = requests.get(current_url, timeout=10)
-                response.raise_for_status()
-                soup = BeautifulSoup(response.text, 'html.parser')
+                    # Extract content
+                    text = self.extract_text_from_url(current_url)
+                    if text:
+                        content[current_url] = text
 
-                # Extract content
-                text = self.extract_text_from_url(current_url)
-                if text:
-                    content[current_url] = text
+                    # Find links
+                    for link in soup.find_all('a', href=True):
+                        href = link['href']
+                        full_url = urljoin(current_url, href)
+                        if full_url.startswith(url):  # Stay on the same domain
+                            graph.add_edge(current_url, full_url)
+                            if full_url not in visited:
+                                to_visit.append(full_url)
 
-                # Find links
-                for link in soup.find_all('a', href=True):
-                    href = link['href']
-                    full_url = requests.compat.urljoin(current_url, href)
-                    if full_url.startswith(url):  # Stay on the same domain
-                        graph.add_edge(current_url, full_url)
-                        if full_url not in visited:
-                            to_visit.append(full_url)
+                except RequestException as e:
+                    logging.warning(f"Error crawling {current_url}: {e}")
 
-            except Exception as e:
+                time.sleep(1)  # Add a delay to avoid overwhelming the server
 
-
-             return graph, content
+            return graph, content
+        except Exception as e:
+            logging.error(f"Error in crawl_website: {e}")
+            return nx.DiGraph(), {}
 
     def calculate_similarity(self, query, text):
         tfidf_matrix = self.vectorizer.fit_transform([query, text])
         return cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
 
+    def process_search_result(self, result, engine_name, query):
+        link = result.select_one('a')
+        if link and link.get('href'):
+            url = link['href']
+            if url.startswith('http'):
+                try:
+                    graph, crawled_content = self.crawl_website(url)
+                    search_results = []
+                    for page_url, content in crawled_content.items():
+                        similarity = self.calculate_similarity(query, content)
+                        if similarity > 0.1:  # Adjust threshold as needed
+                            search_results.append({
+                                "title": link.get_text(),
+                                "link": page_url,
+                                "content": content,
+                                "similarity": similarity
+                            })
+                    return search_results
+                except Exception as e:
+                    logging.error(f"Error processing search result from {engine_name}: {e}")
+        return []
+
     def web_research(self, query):
-
-
         combined_query = query
         search_engines = [
             ("https://www.google.com/search", "google"),
             ("https://www.bing.com/search", "bing"),
             ("https://search.brave.com/search", "brave")
         ]
-        search_results = []
+        all_search_results = []
 
         for engine_url, engine_name in search_engines:
-
-
             try:
                 driver = self._initialize_webdriver()
                 driver.get(engine_url)
@@ -222,13 +271,12 @@ class WebResearchTool:
                     )
                     
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
-                    results = soup.select(result_selector)[:5]  # Top 5 results
+                    results = soup.select(result_selector)[:max_search_results]
                     
                     if results:
                         self.selector_rl.update_q_value(engine_name, search_box_selector, 1)
                         self.selector_rl.update_q_value(engine_name, result_selector, 1)
                     else:
-
                         new_search_box_selector = self.find_new_selector(driver, "search_box")
                         new_result_selector = self.find_new_selector(driver, "result")
                         
@@ -249,42 +297,34 @@ class WebResearchTool:
                             )
                             
                             soup = BeautifulSoup(driver.page_source, 'html.parser')
-                            results = soup.select(new_result_selector)[:5]
+                            results = soup.select(new_result_selector)[:max_search_results]
                     
-                    for result in results:
-                        link = result.select_one('a')
-                        if link and link.get('href'):
-                            url = link['href']
-                            if url.startswith('http'):
-                                graph, crawled_content = self.crawl_website(url)
-                                for page_url, content in crawled_content.items():
-                                    similarity = self.calculate_similarity(combined_query, content)
-                                    if similarity > 0.1:  # Adjust threshold as needed
-                                        search_results.append({
-                                            "title": link.get_text(),
-                                            "link": page_url,
-                                            "content": content,
-                                            "similarity": similarity
-                                        })
-                except (NoSuchElementException, TimeoutException) as e:
+                    with ThreadPoolExecutor(max_workers=5) as executor:
+                        future_to_result = {executor.submit(self.process_search_result, result, engine_name, query): result for result in results}
+                        for future in as_completed(future_to_result):
+                            all_search_results.extend(future.result())
 
+                except (NoSuchElementException, TimeoutException) as e:
+                    logging.error(f"Error with {engine_name} search: {e}")
                     self.selector_rl.update_q_value(engine_name, search_box_selector, -1)
                     self.selector_rl.update_q_value(engine_name, result_selector, -1)
             except WebDriverException as e:
-                print(f"Error with {engine_name} search:    {e}")
+                logging.error(f"Error with {engine_name} search: {e}")
             finally:
                 driver.quit()
 
+            time.sleep(2)  # Add a delay between search engine queries
+
         self.selector_rl.save_state()
 
-        if not search_results:
+        if not all_search_results:
             return f"No results found for the query: {combined_query}"
 
         # Sort results by similarity
-        search_results.sort(key=lambda x: x['similarity'], reverse=True)
+        all_search_results.sort(key=lambda x: x['similarity'], reverse=True)
 
         aggregated_content = ""
-        for result in search_results:
+        for result in all_search_results:
             if len(aggregated_content) + len(result['content']) <= self.max_content_length:
                 aggregated_content += f"[Source: {result['link']}]\n{result['content']}\n\n"
             else:
@@ -292,9 +332,23 @@ class WebResearchTool:
                 aggregated_content += f"[Source: {result['link']}]\n{result['content'][:remaining_chars]}"
                 break
 
+        return self.summarize_results(aggregated_content, combined_query)
 
-
-        return aggregated_content.strip() if aggregated_content else f"Unable to retrieve relevant content for the query: {combined_query}"
+    def summarize_results(self, aggregated_content, query):
+        # This method can be expanded to provide a more concise summary of the research results
+        summary = f"Research results for query: {query}\n\n"
+        summary += "Key findings:\n"
+        
+        # Extract main points (this is a simple implementation and can be improved)
+        sentences = aggregated_content.split('.')
+        main_points = [sentence.strip() for sentence in sentences if query.lower() in sentence.lower()][:5]
+        
+        for i, point in enumerate(main_points, 1):
+            summary += f"{i}. {point}.\n"
+        
+        summary += f"\nDetailed information:\n{aggregated_content}"
+        
+        return summary
 
 if __name__ == "__main__":
     tool = WebResearchTool()
