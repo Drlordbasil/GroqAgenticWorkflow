@@ -147,7 +147,7 @@ class WebResearchTool:
             if 'driver' in locals():
                 driver.quit()
 
-    def crawl_website(self, url, max_pages=5, progress_callback: callable = None):
+    def crawl_website(self, url, max_pages=5):
         visited = set()
         to_visit = [url]
         graph = nx.DiGraph()
@@ -159,8 +159,7 @@ class WebResearchTool:
                 continue
 
             visited.add(current_url)
-            if progress_callback:
-                progress_callback(f"Crawling: {current_url}")
+
 
             try:
                 response = requests.get(current_url, timeout=10)
@@ -182,10 +181,9 @@ class WebResearchTool:
                             to_visit.append(full_url)
 
             except Exception as e:
-                if progress_callback:
-                    progress_callback(f"Error crawling {current_url}: {e}")
 
-        return graph, content
+
+             return graph, content
 
     def calculate_similarity(self, query, text):
         tfidf_matrix = self.vectorizer.fit_transform([query, text])
@@ -298,15 +296,7 @@ class WebResearchTool:
 
         return aggregated_content.strip() if aggregated_content else f"Unable to retrieve relevant content for the query: {combined_query}"
 
-# Example usage
 if __name__ == "__main__":
-    research_tool = WebResearchTool(max_content_length=2000)
-    user_prompt = "What are the latest advancements in AI?"
-    assistant_query = "Focus on breakthroughs in natural language processing and computer vision"
-
-    def progress_update(message):
-        print(f"Progress: {message}")
-
-    results = research_tool.web_research(query=f"{user_prompt} {assistant_query}", progress_callback=progress_update)
-    print(f"Research results:\n\n{results}")
-# copy and pasted from drlordbasil/aurora repo
+    tool = WebResearchTool()
+    query = "How to create a website"
+    print(tool.web_research(query))
