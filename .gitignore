@@ -16,3 +16,9 @@ workspace/_initializer.py
 workspace/_trainer.py
 workspace/model.py
 workspace/testing.py
+__pycache__/agent_functions.cpython-312.pyc
+__pycache__/agent_functions.cpython-312.pyc
+workspace/_model.py
+workspace/_test.py
+workspace/_testing.py
+__pycache__/agent_functions.cpython-312.pyc

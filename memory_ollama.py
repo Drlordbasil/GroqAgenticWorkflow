@@ -4,14 +4,14 @@ import ollama
 class MemoryManager:
     def __init__(self, model_name="mxbai-embed-large"):
         self.client = chromadb.Client()
-        
+        self.model_name = model_name
+
         # Check if the collection already exists
-        if "memory" in self.client.list_collections():
+        existing_collections = self.client.list_collections()
+        if any(collection.name == "memory" for collection in existing_collections):
             self.collection = self.client.get_collection(name="memory")
         else:
             self.collection = self.client.create_collection(name="memory")
-        
-        self.model_name = model_name
 
     def save_memory(self, memory_id, content):
         response = ollama.embeddings(model=self.model_name, prompt=content)
@@ -34,7 +34,7 @@ class MemoryManager:
 
     def generate_response(self, prompt, memory):
         output = ollama.generate(
-            model="llama2",
+            model="qwen:0.5b",
             prompt=f"Using this memory: {memory}. Respond to this prompt: {prompt}"
         )
         return output['response']
