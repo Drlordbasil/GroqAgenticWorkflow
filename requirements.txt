@@ -1,5 +1,32 @@
+# General Dependencies
 openai
 python-dotenv
 groq
 langchain
 langchain_community
+
+# Specific Dependencies for Each File
+# agent_functions.py and agentic.py
+spacy
+tfidfvectorizer
+nltk
+networkx
+beautifulsoup4
+selenium
+requests
+pytest
+bitcoinlib
+chromadb
+
+# Additional Dependencies for Code Execution Manager
+black
+pylint
+cProfile
+pstats
+astroid
+
+# DevOps and Web Research Tool
+webdriver_manager
+trafilatura
+concurrent.futures
+urllib.parse

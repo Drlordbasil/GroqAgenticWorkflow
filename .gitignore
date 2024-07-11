@@ -12,3 +12,7 @@ __pycache__/browser_tools.cpython-312.pyc
 __pycache__/crypto_wallet.cpython-312.pyc
 agentic_workflow_checkpoint.pkl
 __pycache__/browser_tools.cpython-312.pyc
+workspace/_initializer.py
+workspace/_trainer.py
+workspace/model.py
+workspace/testing.py
