@@ -15,23 +15,7 @@ from browser_tools import WebResearchTool
 from autogen_coding import AutogenCoding
 tools = [
 
-        {
-            "type": "function",
-            "function": {
-                "name": "test_code",
-                "description": "Test the provided code snippet for errors and return the results",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "code": {
-                            "type": "string",
-                            "description": "The code to test for errors",
-                        }
-                    },
-                    "required": ["code"],
-                },
-            },
-        },
+
         {
             "type": "function",
             "function": {
@@ -159,7 +143,6 @@ def agent_chat(user_input, system_message, memory, model, temperature, max_retri
                 if tool_calls:
                     available_functions = {
                         "web_search": web_search.web_research,
-                        "test_code": code_execution_manager.test_code,
                         "save_file": code_execution_manager.save_file,
                         "read_file": code_execution_manager.read_file,
                         "list_files": code_execution_manager.list_files_in_workspace,
