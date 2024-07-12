@@ -55,8 +55,8 @@ GroqAgenticWorkflow is a revolutionary AI system that harnesses the power of Gro
 - **💰 Crypto Wallet Integration**: Seamless blockchain transactions and profit management
 - **🔗 Smart Memory Handling**: Efficient data management using Ollama and ChromaDB
 - **📊 NLP-Driven Task Management**: Automated task extraction, prioritization, and tracking
-- **🔄 Continuous Learning**: Self-improving algorithms for ever-increasing efficiency
-- **🔐 Enterprise-Grade Security**: Built-in safeguards for code and data protection
+- **🔄 Continuous Learning**: Self-improving algorithms for ever-increasing efficiency(future improvement)
+- **🔐 Enterprise-Grade Security**: Built-in safeguards for code and data protection(future improvement)
 
 </details>
 
