@@ -1,10 +1,9 @@
-import os
-import json
+
 from agent_functions import AgentFunctions
 from code_execution_manager import CodeExecutionManager
 from task_manager import TaskManager
+
 from autogen_coding import AutogenCoding
-from browser_tools import WebResearchTool
 from memory_ollama import MemoryManager
 
 class AgenticWorkflow:
@@ -12,8 +11,9 @@ class AgenticWorkflow:
         self.agent_functions = AgentFunctions()
         self.code_execution_manager = CodeExecutionManager()
         self.task_manager = TaskManager()
-        self.autogen_coding = AutogenCoding()
-        self.web_research_tool = WebResearchTool()
+        self.coding = AutogenCoding()
+
+
         try:
             self.memory_manager = MemoryManager()
         except Exception as e:
@@ -54,7 +54,7 @@ class AgenticWorkflow:
 
     def run_iteration(self, iteration, date_time):
         workspace_files = self.code_execution_manager.list_files_in_workspace().get("files", [])
-        project_output_goal = f"Create a model algorithm to train a model on actionable Windows 11 actions for becoming the first AI real assistant AI. Current time: {date_time} We want 5 total modularized files: main.py, utils.py, training.py, testing.py, and model.py"
+        project_output_goal = f"create a profitable script from scratch that generates real profit, not simulated profit."
 
         print(f"Project Output Goal: {project_output_goal}")
 
