@@ -1,32 +1,39 @@
-# General Dependencies
-openai
-python-dotenv
+# Core dependencies
 groq
 langchain
-langchain_community
-
-# Specific Dependencies for Each File
-# agent_functions.py and agentic.py
+langchain-groq
+python-dotenv
 spacy
-tfidfvectorizer
-nltk
-networkx
+pytest
+pylint
+black
+
+# Web scraping and processing
 beautifulsoup4
 selenium
+trafilatura
 requests
-pytest
-bitcoinlib
+webdriver-manager
+
+# Data processing and analysis
+numpy
+scikit-learn
+networkx
+
+# Autogen and related libraries
+autogen
 chromadb
 
-# Additional Dependencies for Code Execution Manager
-black
-pylint
-cProfile
-pstats
-astroid
+# Crypto-related
+bitcoinlib
 
-# DevOps and Web Research Tool
-webdriver_manager
-trafilatura
-concurrent.futures
-urllib.parse
+# Additional utilities
+tqdm
+
+# NLP and text processing
+nltk
+
+# Ollama integration
+ollama
+
+# Ensure you run: python -m spacy download en_core_web_sm
