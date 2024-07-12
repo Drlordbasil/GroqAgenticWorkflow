@@ -38,7 +38,7 @@
 
 GroqAgenticWorkflow is a revolutionary AI system that harnesses the power of Groq technology to autonomously generate profitable Python scripts. Our cutting-edge platform combines specialized AI agents, advanced NLP, and state-of-the-art language models to create a truly self-sustaining development ecosystem.
 
-> "GroqAgenticWorkflow is not just a tool; it's a glimpse into the future of software development." - *AI Today Magazine*
+
 
 ---
 
