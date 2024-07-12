@@ -14,10 +14,7 @@
   </a>
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
-  </a>
-  <a href="https://github.com/Drlordbasil/GroqAgenticWorkflow/actions/workflows/python-app.yml">
-    <img src="https://github.com/Drlordbasil/GroqAgenticWorkflow/actions/workflows/python-app.yml/badge.svg" alt="CI Status">
-  </a>
+
   <a href="https://github.com/Drlordbasil/GroqAgenticWorkflow/stargazers">
     <img src="https://img.shields.io/github/stars/Drlordbasil/GroqAgenticWorkflow?style=social" alt="GitHub stars">
   </a>
