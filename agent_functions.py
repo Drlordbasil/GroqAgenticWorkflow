@@ -198,7 +198,7 @@ class AgentFunctions:
                     memory.append({"role": "user", "content": user_input})
 
                     # Prune and summarize memory if it gets too long
-                    if len(memory) > 100:
+                    if len(memory) > 2000:
                         summarized_memory = self.summarize_memory(memory)
                         memory.clear()
                         memory.extend(summarized_memory)
@@ -281,7 +281,7 @@ class AgentFunctions:
     def get_file_name_for_code(self, code: str, system_message: str, memory: List[Dict[str, str]], agent_name: str) -> str:
         file_name_response = self.agent_chat(
             f"Please provide a relevant file name for the following code snippet:\n\n{code} \n\n only respond with a singular file name valid for your file. RESPONSE FORMAT ALWAYS(change the filename depending): main.py",
-            system_message, memory, "mixtral-8x7b-32768", 0.7, agent_name=agent_name.capitalize()
+            system_message, memory, "llama3-70b-8192", 0, agent_name=agent_name.capitalize()
         )
         file_name_pattern = r'(\w+\.(?:py|txt|json|csv|md))'
         file_name_match = re.search(file_name_pattern, file_name_response, re.IGNORECASE)
@@ -471,35 +471,3 @@ class AgentFunctions:
 
         timeline += f"\nEstimated completion date: {current_date.strftime('%Y-%m-%d')}"
         return timeline
-
-# Example usage
-if __name__ == "__main__":
-    agent_functions = AgentFunctions()
-    current_time = agent_functions.get_current_date_and_time()
-    agent_functions.print_block(f"Current Time: {current_time}")
-    
-    # Example: Generate a progress report
-    tasks = [
-        {"task": "Design database schema", "status": "completed"},
-        {"task": "Implement user authentication", "status": "in progress"},
-        {"task": "Create API endpoints", "status": "pending"},
-        {"task": "Write unit tests", "status": "pending"},
-        {"task": "Deploy to staging environment", "status": "pending"}
-    ]
-    sample_code = """
-def main():
-    print("Hello, World!")
-
-if __name__ == "__main__":
-    main()
-    """
-    progress_report = agent_functions.generate_progress_report(tasks, sample_code)
-    print(progress_report)
-
-    # Example: Analyze code quality
-    code_quality = agent_functions.analyze_code_quality(sample_code)
-    print("Code Quality Analysis:", code_quality)
-
-    # Example: Generate project timeline
-    timeline = agent_functions.generate_project_timeline(tasks)
-    print(timeline)

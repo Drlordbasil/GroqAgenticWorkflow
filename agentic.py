@@ -25,7 +25,9 @@ class AgenticWorkflow:
         self.system_messages = self.load_system_messages()
         self.memory = {key: [] for key in ["mike", "annie", "bob", "alex"]}
         self.code = ""
-
+        self.report = ""
+        self.bob_message = ""
+        self.profit_status = ""
     def load_system_messages(self):
         system_messages = {}
         for agent in ["mike", "annie", "bob", "alex"]:
@@ -33,7 +35,10 @@ class AgenticWorkflow:
             with open(filepath, 'r', encoding='utf-8') as file:
                 system_messages[agent] = file.read()
         return system_messages
-
+    def get_report(self):
+        progress_report = AgentFunctions.generate_progress_report(self.memory)
+        self.report = progress_report
+        return self.report
     def run_workflow(self):
         self.agent_functions.print_block("Agentic Workflow", character='*')
         date_time = self.agent_functions.get_current_date_and_time()
@@ -109,7 +114,7 @@ class AgenticWorkflow:
     def assign_task_to_agent(self, agent, task, date_time, workspace_files):
         agent_input = f"""
         Current time: {date_time}
-        You are {agent.capitalize()}, an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}.
+        You are {agent} an AI {'software architect and engineer' if agent == 'mike' else 'senior agentic workflow developer' if agent == 'annie' else 'DevOps Engineer'}.
         Here is your task:
         {task}
         tools you have: {self.agent_functions.tools}
@@ -123,7 +128,7 @@ class AgenticWorkflow:
         ALWAYS BE HONEST AND TRUTHFUL. Never lie, deceive, or pretend that code or files exist when they do not.
         Always use the available tools to gather accurate information and verify the existence of files before referencing them.
         """
-        agent_response = self.agent_functions.agent_chat(agent_input, self.system_messages[agent], self.memory[agent], "llama3-70b-8192", 0.7, agent_name=agent.capitalize())
+        agent_response = self.agent_functions.agent_chat(agent_input, self.system_messages[agent], self.memory[agent], "llama3-70b-8192", 0, agent_name=agent.capitalize())
         print(f"{agent.capitalize()}'s Response:\n{agent_response}")
 
         # Extract code from the agent's response
@@ -145,7 +150,7 @@ class AgenticWorkflow:
         Ensure that no API keys or secrets are used in the code, and only open-source, free APIs and free Python libraries are utilized.
         IMPORTANT: Be honest and truthful in your review. If the code does not exist or has issues, clearly state that.
         Do not pretend that non-existent code or files exist. Use the available tools to verify the existence of files and gather accurate information before providing your review.
-
+        {self.get_report()}
         {self.code}
         """
         alex_review_response = self.agent_functions.agent_chat(alex_review_input, self.system_messages["alex"], self.memory["alex"], "llama3-70b-8192", 0.5, agent_name="Alex")
@@ -162,15 +167,16 @@ class AgenticWorkflow:
         Ensure that no API keys or secrets are used in the code, and only open-source, free APIs and free Python libraries are utilized.
         IMPORTANT: Be honest and truthful in your verification. If the code does not generate real profit or has issues, clearly state that.
         Do not pretend that non-existent code or files exist. Use the available tools to verify the functionality and gather accurate information before providing your verification.
-
+        {self.get_report()}
         Current code:
         {self.code}
         """
         profit_verification_response = self.agent_functions.agent_chat(profit_verification_input, self.system_messages["bob"], self.memory["bob"], "llama3-70b-8192", 0.5, agent_name="Bob")
+        self.profit_status = profit_verification_response
         print(f"Bob's Profit Verification:\n{profit_verification_response}")
 
         for agent in ["mike", "annie", "alex"]:
-            self.memory[agent].append({"role": "assistant", "content": f"Iteration completed. Code created from scratch and verified for real profit generation. Code saved in the workspace. Current time: {date_time}"})
+            self.memory[agent].append({"role": "assistant", "content": f"Iteration completed. Code created from scratch and verified for real profit generation. Code saved in the workspace. Current time: {date_time}, current profit status: {self.profit_status}, report: {self.report}, Bob's message: {self.bob_message}"})
 
     def read_multiple_files(self, files):
         content = ""
