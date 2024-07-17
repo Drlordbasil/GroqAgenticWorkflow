@@ -23,3 +23,5 @@ workspace/_test.py
 workspace/_testing.py
 __pycache__/agent_functions.cpython-312.pyc
 __pycache__/code_execution_manager.cpython-312.pyc
+utils/__pycache__/data_compression.cpython-312.pyc
+utils/__pycache__/logger.cpython-312.pyc

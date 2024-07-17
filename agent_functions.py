@@ -3,12 +3,12 @@ import datetime
 import os
 import re
 import pickle
-import zlib
+
 from time import sleep
-import logging
+from utils.logger import setup_logger
 from typing import List, Dict, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+from utils.data_compression import compress_data, decompress_data
 from code_execution_manager import CodeExecutionManager
 import spacy
 from langchain.prompts import ChatPromptTemplate
@@ -27,123 +27,17 @@ class AgentFunctions:
         self.task_manager = TaskManager()
         self.memory_manager = MemoryManager()
         self.nlp = spacy.load("en_core_web_sm")
-        self.logger = self.setup_logger()
-        self.tools = self.load_tools()
+        self.compress_data = compress_data
+        self.decompress_data = decompress_data
+        
+        self.tools = self.load_tools_from_file("tools.json")
+        self.logger = setup_logger()
 
-    def setup_logger(self):
-        logger = logging.getLogger(__name__)
-        logger.setLevel(logging.INFO)
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        return logger
 
-    def load_tools(self) -> List[Dict[str, Any]]:
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": "save_file",
-                    "description": "Save the provided content to a file with the specified file path",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "content": {"type": "string", "description": "The content to save to the file"},
-                            "file_path": {"type": "string", "description": "The file path to save the content to"}
-                        },
-                        "required": ["content", "file_path"],
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "read_file",
-                    "description": "Read the content of the provided file path",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {"type": "string", "description": "The file path to read the content from"}
-                        },
-                        "required": ["file_path"],
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "list_files",
-                    "description": "List the files in the workspace directory",
-                    "parameters": {},
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "web_search",
-                    "description": "Search the web for information on the provided query",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "The query to search the web for"}
-                        },
-                        "required": ["query"],
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "coding",
-                    "description": "Start a coding session with the provided task description",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "task": {"type": "string", "description": "The task description for the coding session"}
-                        },
-                        "required": ["task"],
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "extract_tasks",
-                    "description": "Extract tasks from the given text",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "text": {"type": "string", "description": "The text to extract tasks from"}
-                        },
-                        "required": ["text"],
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "update_task_status",
-                    "description": "Update the status of a task",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "task_id": {"type": "integer", "description": "The ID of the task to update"},
-                            "status": {"type": "string", "description": "The new status of the task"}
-                        },
-                        "required": ["task_id", "status"],
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_task_summary",
-                    "description": "Get a summary of all tasks",
-                    "parameters": {},
-                },
-            },
-        ]
+    def load_tools_from_file(self, file_path: str) -> List[Dict[str, Any]]:
+        with open(file_path, 'r') as f:
+            tools = json.load(f)
+        return tools
 
     def get_current_date_and_time(self) -> str:
         return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -309,11 +203,6 @@ class AgentFunctions:
             self.logger.warning(f"Checkpoint file not found: {checkpoint_file}")
             return None, ""
 
-    def compress_data(self, data: Any) -> bytes:
-        return zlib.compress(pickle.dumps(data))
-
-    def decompress_data(self, compressed_data: bytes) -> Any:
-        return pickle.loads(zlib.decompress(compressed_data))
 
     def print_block(self, text: str, width: int = 80, character: str = '='):
         lines = text.split('\n')

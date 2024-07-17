@@ -20,7 +20,7 @@ class AgenticWorkflow:
             print(f"Error initializing MemoryManager: {e}")
             print("Continuing without MemoryManager...")
             self.memory_manager = None
-        self.checkpoint_file = "agentic_workflow_checkpoint.pkl"
+        self.checkpoint_file = "checkpoints/agentic_workflow_checkpoint.pkl"
         self.max_iterations = 500
         self.system_messages = self.load_system_messages()
         self.memory = {key: [] for key in ["mike", "annie", "bob", "alex"]}
