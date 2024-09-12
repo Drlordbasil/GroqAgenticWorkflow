@@ -1,4 +1,4 @@
-
+New projects are better, check them out, this is a bit outdated in flow and structured outputs/libs. It's better to recreate and leave this epic one be without effing it up. I made new ones and will be posting hundreds of projects I havent released yet as well to compensate.
 <h1 align="center">
   <br>
 
