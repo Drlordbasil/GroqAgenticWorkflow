@@ -163,6 +163,8 @@ class AgentFunctions:
                         system_messages: Dict[str, str], memory: Dict[str, List[Dict[str, str]]], 
                         agent_name: str = "annie"):
         compressed_data = self.compress_data(checkpoint_data)
+        # Ensure the directory exists before saving
+        os.makedirs(os.path.dirname(checkpoint_file), exist_ok=True)
         with open(checkpoint_file, 'wb') as f:
             pickle.dump(compressed_data, f)
 
@@ -360,3 +362,4 @@ class AgentFunctions:
 
         timeline += f"\nEstimated completion date: {current_date.strftime('%Y-%m-%d')}"
         return timeline
+
