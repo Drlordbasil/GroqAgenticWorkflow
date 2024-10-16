@@ -34,7 +34,7 @@ class MemoryManager:
 
     def generate_response(self, prompt, memory):
         output = ollama.generate(
-            model="qwen:0.5b",
+            model="llama3.1:8b",
             prompt=f"Using this memory: {memory}. Respond to this prompt: {prompt}"
         )
         return output['response']

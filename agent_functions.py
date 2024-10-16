@@ -268,15 +268,20 @@ class AgentFunctions:
         return report
 
     def get_recent_changes(self, code: str) -> List[str]:
-        # This is a placeholder implementation. In a real-world scenario,
-        # you would integrate with a version control system like Git.
-        return [
-            "Added new function: process_data()",
-            "Updated error handling in main loop",
-            "Refactored database connection logic",
-            "Implemented new feature: user authentication",
-            "Fixed bug in task scheduling algorithm"
-        ]
+        changelog_path = os.path.join("workspace", "changelog.txt")
+        if not os.path.exists(changelog_path):
+            with open(changelog_path, 'w') as f:
+                f.write("Change Log:\n")
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        code_snapshot_path = os.path.join("workspace", f"code_snapshot_{timestamp}.py")
+        with open(code_snapshot_path, 'w') as f:
+            f.write(code)
+        with open(changelog_path, 'a') as f:
+            f.write(f"{timestamp}: Updated code snapshot saved to {code_snapshot_path}\n")
+        with open(changelog_path, 'r') as f:
+            lines = f.readlines()
+        recent_changes = lines[-5:] if len(lines) > 5 else lines[1:]
+        return [line.strip() for line in recent_changes]
 
     def analyze_code_quality(self, code: str) -> Dict[str, Any]:
         # This method would typically use tools like pylint or flake8
@@ -362,4 +367,5 @@ class AgentFunctions:
 
         timeline += f"\nEstimated completion date: {current_date.strftime('%Y-%m-%d')}"
         return timeline
+
 
